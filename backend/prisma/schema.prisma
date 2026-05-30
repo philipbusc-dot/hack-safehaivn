@@ -1,5 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// SafeHAIVN — Pandemic Survival Intelligence System
+// Prisma schema. Learn more: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client"
@@ -10,22 +10,37 @@ datasource db {
   provider = "sqlite"
 }
 
+// Feature 4 — AI Survival Briefing System
+model KnowledgeArticle {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  category  String
+  source    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Authentication — site accounts.
+// role: "admin" (may edit Map data) | "survivor" (standard user).
+// Signup only ever creates survivors; admins are seeded (see prisma/seed.ts).
 model User {
-  id       String  @id @default(cuid())
-  email    String  @unique
-  password String // store the hash, never plaintext
-  name     String
-  photoUrl String?
-  lat      Float? // for nearby matching
-  lng      Float?
+  id           String   @id @default(cuid())
+  email        String   @unique
+  username     String   @unique
+  passwordHash String
+  role         String   @default("survivor")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  photoUrl     String?
+  lat          Float? // for nearby matching
+  lng          Float?
 
   countryId String
   country   Country @relation(fields: [countryId], references: [id])
 
   description String
   stats       SurvivalStat[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
 }
 
 model SurvivalStat {
@@ -73,17 +88,17 @@ model Country {
 }
 
 model Survivor {
-  id             String   @id @default(uuid())
-  name           String
-  age            Int
-  bio            String
-  baseLocation   String
-  latitude       Float
-  longitude      Float
-  avatarUrl      String
-  isCurrentUser  Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  supplies       Supply[]
+  id            String   @id @default(uuid())
+  name          String
+  age           Int
+  bio           String
+  baseLocation  String
+  latitude      Float
+  longitude     Float
+  avatarUrl     String
+  isCurrentUser Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  supplies      Supply[]
 }
 
 model Supply {
@@ -111,13 +126,14 @@ model ChatMessage {
   timestamp  String // e.g. "03:14 AM"
   createdAt  DateTime @default(now())
 }
-model CountryReport{
-  id Int @id @default(autoincrement())
-  countryCode String 
+
+model CountryReport {
+  id          Int      @id @default(autoincrement())
+  countryCode String
   countryName String
-  severity String @default("Moderate")
-  cases Int @default(0)
-  note String @default("")
-  createAt DateTime  @default(now())
-  updateAt DateTime @updatedAt
+  severity    String   @default("Moderate")
+  cases       Int      @default(0)
+  note        String   @default("")
+  createAt    DateTime @default(now())
+  updateAt    DateTime @updatedAt
 }
