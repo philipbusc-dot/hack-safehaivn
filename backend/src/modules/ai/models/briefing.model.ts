@@ -367,7 +367,14 @@ async function tryOpenAI(
         progressPct: Number(win["progressPct"]) || 64,
       },
     };
-  } catch {
+  } catch (err) {
+    // Log why we fell back so the OpenAI path is debuggable (auth, quota,
+    // network, malformed JSON). The request still succeeds via the template.
+    console.warn(
+      `[ai] OpenAI call failed, using fallback: ${
+        err instanceof Error ? err.message : String(err)
+      }`
+    );
     return null;
   }
 }
