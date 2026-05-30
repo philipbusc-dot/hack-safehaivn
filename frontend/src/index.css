@@ -59,7 +59,15 @@
   --shadow-glow: 0 0 22px -4px rgba(164, 210, 51, 0.45);
   --shadow-panel: 0 30px 90px -50px rgba(0, 0, 0, 0.9);
 }
+@keyframes scan {
+  0% { top: 0%; }
+  50% { top: 100%; }
+  100% { top: 0%; }
+}
 
+.animate-scan {
+  animation: scan 3s linear infinite;
+}
 * {
   font-family: 'Space Mono', monospace;
 }
