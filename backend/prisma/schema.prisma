@@ -10,20 +10,66 @@ datasource db {
   provider = "sqlite"
 }
 
-model MultiplicationRecord {
-  id        Int      @id @default(autoincrement())
-  a         Float
-  b         Float
-  result    Float
-  createdAt DateTime @default(now())
+model User {
+  id       String  @id @default(cuid())
+  email    String  @unique
+  password String // store the hash, never plaintext
+  name     String
+  photoUrl String?
+  lat      Float? // for nearby matching
+  lng      Float?
+
+  countryId String
+  country   Country @relation(fields: [countryId], references: [id])
+
+  description String
+  stats       SurvivalStat[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 }
 
-model AdditionRecord {
-  id        Int      @id @default(autoincrement())
-  a         Float
-  b         Float
-  result    Float
-  createdAt DateTime @default(now())
+model SurvivalStat {
+  id     String @id @default(cuid())
+  name   String
+  value  Float
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RegionRisk {
+  id      String @id @default(cuid())
+  country String @unique // one profile per country
+  lat     Float
+  lng     Float
+
+  // source factors (live + derived)
+  infectionRate     Float
+  humidity          Float
+  populationDensity Float
+  airportTraffic    Float
+  hospitalPressure  Float
+
+  // computed 0–100 macro score
+  regionalScore Float
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  countries Country[]
+}
+
+model Country {
+  id                String @id @default(cuid())
+  name              String @unique // "Thailand"
+  code              String @unique // "TH"
+  lat               Float
+  lng               Float
+  // static seed factors (from your CSVs)
+  populationDensity Float
+  airportTraffic    Float
+
+  users        User[]
+  risk         RegionRisk? @relation(fields: [regionRiskId], references: [id]) // one live risk record per country
+  regionRiskId String?
 }
 
 model Survivor {

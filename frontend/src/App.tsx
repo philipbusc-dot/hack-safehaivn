@@ -3,7 +3,7 @@ import TempNav from "../public/tempnav";
 
 const App = () => {
   return (
-    <div className="w-screen h-screen flex flex-col overflow-hidden bg-neutral-950">
+    <div className="min-h-screen w-full bg-bg flex justify-center items-start md:items-center p-4">
       <TempNav />
       <div className="flex-1 min-h-0 w-full flex">
         <Outlet />
