@@ -7,6 +7,7 @@ import {
   deleteKnowledge,
 } from "../apis/ai.api";
 import { validateKnowledge } from "../schemas/ai.schema";
+import { useIsAdmin } from "../../auth/components/AdminOnly";
 import type {
   CreateKnowledgeInput,
   KnowledgeArticle,
@@ -72,6 +73,7 @@ export default function KnowledgeBase() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const errors = validateKnowledge(draft);
+  const isAdmin = useIsAdmin();
 
   async function load() {
     setLoading(true);
@@ -157,7 +159,11 @@ export default function KnowledgeBase() {
       </div>
 
       {open && (
-        <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+        <div
+          className={`mt-5 grid grid-cols-1 gap-6 ${
+            isAdmin ? "lg:grid-cols-[1fr_320px]" : ""
+          }`}
+        >
           {/* List */}
           <div className="flex flex-col gap-2.5">
             {loading ? (
@@ -185,22 +191,24 @@ export default function KnowledgeBase() {
                         {a.category} · {a.source}
                       </MonoLabel>
                     </div>
-                    <div className="flex shrink-0 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => startEdit(a)}
-                        className="rounded-chip border border-line2 px-2.5 py-1 text-[12px] text-muted transition hover:text-ink"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleDelete(a.id)}
-                        className="rounded-chip border border-danger/40 px-2.5 py-1 text-[12px] text-danger transition hover:bg-danger/10"
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    {isAdmin && (
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => startEdit(a)}
+                          className="rounded-chip border border-line2 px-2.5 py-1 text-[12px] text-muted transition hover:text-ink"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDelete(a.id)}
+                          className="rounded-chip border border-danger/40 px-2.5 py-1 text-[12px] text-danger transition hover:bg-danger/10"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <p className="mt-2 line-clamp-3 text-[13px] leading-snug text-muted">
                     {a.content}
@@ -210,7 +218,8 @@ export default function KnowledgeBase() {
             )}
           </div>
 
-          {/* Editor */}
+          {/* Editor — admin only (creating/editing site content) */}
+          {isAdmin && (
           <div className="flex flex-col gap-3 rounded-card border border-line bg-surface/50 p-4">
             <div className="flex items-center justify-between">
               <MonoLabel className="text-statusdim">
@@ -268,6 +277,7 @@ export default function KnowledgeBase() {
               {editingId ? "Update Article" : "Add Article"}
             </button>
           </div>
+          )}
         </div>
       )}
     </Panel>

@@ -6,6 +6,7 @@ import {
   deleteReport,
 } from "../apis/countryReport.api";
 import type { CountryReport } from "../types/countryReport.types";
+import { useIsAdmin } from "../../auth/components/AdminOnly";
 
 const EMPTY = {
   countryCode: "",
@@ -27,6 +28,7 @@ export default function CountryReportPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const isAdmin = useIsAdmin();
 
   // READ — load all reports
   async function load() {
@@ -85,10 +87,13 @@ export default function CountryReportPage() {
       <div className="max-w-3xl mx-auto">
         <h1 className="text-3xl font-bold mb-1 text-[#A4D233]">Country Reports</h1>
         <p className="text-sm text-gray-400 mb-6">
-          Create, edit, and delete outbreak reports (full CRUD).
+          {isAdmin
+            ? "Create, edit, and delete outbreak reports (full CRUD)."
+            : "Outbreak reports (read-only). Sign in as an admin to edit."}
         </p>
 
-        {/* CREATE / EDIT form */}
+        {/* CREATE / EDIT form — admin only */}
+        {isAdmin && (
         <form
           onSubmit={handleSubmit}
           className="bg-[#13241E] border border-[#1D3A33] rounded-xl p-5 mb-8 grid grid-cols-2 gap-3"
@@ -150,6 +155,7 @@ export default function CountryReportPage() {
             )}
           </div>
         </form>
+        )}
 
         {error && <p className="text-red-400 mb-4">{error}</p>}
 
@@ -181,20 +187,22 @@ export default function CountryReportPage() {
                     {r.note ? ` · ${r.note}` : ""}
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => startEdit(r)}
-                    className="text-sm border border-[#2E4A40] rounded px-3 py-1"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(r.id)}
-                    className="text-sm border border-red-500 text-red-400 rounded px-3 py-1"
-                  >
-                    Delete
-                  </button>
-                </div>
+                {isAdmin && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => startEdit(r)}
+                      className="text-sm border border-[#2E4A40] rounded px-3 py-1"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(r.id)}
+                      className="text-sm border border-red-500 text-red-400 rounded px-3 py-1"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
