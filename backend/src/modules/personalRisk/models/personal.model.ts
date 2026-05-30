@@ -1,4 +1,5 @@
 import { prisma } from "../../../db";
+import { hashPassword } from "../../../lib/auth";
 import {
   computeResourceMitigation,
   riskToDanger,
@@ -29,8 +30,9 @@ async function getDemoUserId(): Promise<string> {
     update: {},
     create: {
       email: DEMO_EMAIL,
-      password: "demo",
-      name: "Demo Survivor",
+      username: "demo-survivor",
+      // Demo-only internal user (never logs in); store a hashed placeholder.
+      passwordHash: await hashPassword("demo"),
       countryId: country.id,
       description: "Default demo survival profile",
     },

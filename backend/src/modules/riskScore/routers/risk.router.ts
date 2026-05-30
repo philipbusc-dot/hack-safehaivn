@@ -7,14 +7,17 @@ import {
   remove,
   calculate,
 } from "../controllers/risk.controller";
+import { requireAdmin } from "../../../middlewares/auth";
 
 const router = Router();
+// Pure computation + reads are public; persisting/refreshing/deleting region
+// risk profiles (shared map data) is admin-only.
 router.post("/calculate", calculate);
 
 router.get("/", getAll);
-router.post("/", create);
 router.get("/:country", getOne);
-router.post("/:country/refresh", refresh);
-router.delete("/:country", remove);
+router.post("/", requireAdmin, create);
+router.post("/:country/refresh", requireAdmin, refresh);
+router.delete("/:country", requireAdmin, remove);
 
 export default router;

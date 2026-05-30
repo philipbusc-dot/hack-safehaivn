@@ -7,7 +7,8 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
-    seed: "npx tsx src/modules/connect/seed.ts",
+    // Single source of truth: seeds knowledge + admin, then connect mock data.
+    seed: "npm run seed",
   },
   datasource: {
     url: process.env["DATABASE_URL"],

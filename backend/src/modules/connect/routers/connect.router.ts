@@ -10,8 +10,12 @@ import {
   editMessage,
   deleteMessage
 } from "../controllers/connect.controller";
+import { requireAuth } from "../../../middlewares/auth";
 
 const connectRouter = Router();
+
+// Matchmaking + chat are per-user features: require a logged-in user.
+connectRouter.use(requireAuth);
 
 // Survivor Profile Actions
 connectRouter.get("/user/me", getCurrentUser);

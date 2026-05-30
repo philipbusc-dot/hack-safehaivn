@@ -6,8 +6,12 @@ import {
   removeStat,
   calculate,
 } from "../controllers/personal.controller";
+import { requireAuth } from "../../../middlewares/auth";
 
 const router = Router();
+
+// Personal risk profile is per-user data: require a logged-in user.
+router.use(requireAuth);
 
 router.post("/calculate", calculate);
 

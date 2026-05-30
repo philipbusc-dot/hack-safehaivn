@@ -36,10 +36,12 @@ model User {
   lat          Float? // for nearby matching
   lng          Float?
 
-  countryId String
-  country   Country @relation(fields: [countryId], references: [id])
+  // Optional: a survivor isn't required to pick a country at signup.
+  // Populated later by the risk/connect features.
+  countryId String?
+  country   Country? @relation(fields: [countryId], references: [id])
 
-  description String
+  description String?
   stats       SurvivalStat[]
 }
 

@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "generate": "prisma generate",
     "db:push": "prisma db push",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts && tsx src/modules/connect/seed.ts"
   },
   "keywords": [],
   "author": "",
@@ -41,8 +41,5 @@
     "jsonwebtoken": "^9.0.3",
     "openai": "^6.39.1",
     "zod": "^4.4.3"
-  },
-  "prisma": {
-    "seed": "tsx src/modules/connect/seed.ts"
   }
 }
