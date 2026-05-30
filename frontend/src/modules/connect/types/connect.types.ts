@@ -60,6 +60,9 @@ export interface SurvivorProfile {
   compatibilityScore?: number;
   /** Set when this profile came from GET /connect/matches */
   matchType?: "like" | "love" | null;
+  /** Inbox metadata (GET /connect/matches): last message time + preview. */
+  lastMessageAt?: string | null;
+  lastMessage?: string | null;
   // ─── RiskFactor module integration ───
   /** 0–100 personal risk factor (PSI), computed from this survivor's statistics. */
   personalRiskScore?: number;

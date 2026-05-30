@@ -20,14 +20,13 @@ import {
   findAllSurvivors,
   updateSurvivorLocation,
   createSwipe,
-  ensureChatStarter,
   findMatchesBySender,
+  findChatActivity,
   findSurvivorsByIds,
   findUserForOpinion,
   setOpinion,
   findMessages,
   createMessage,
-  scheduleAutoReply,
   updateMessageText,
   deleteMessageById,
 } from "../models/connect.model";
@@ -340,10 +339,6 @@ export async function swipeSurvivor(req: Request, res: Response, next: NextFunct
 
     const match = await createSwipe(userId, parsed.receiverId, parsed.status);
 
-    if (parsed.status === "like" || parsed.status === "love") {
-      await ensureChatStarter(parsed.receiverId, userId);
-    }
-
     const response: SwipeResponse = {
       id: match.id,
       senderId: match.senderId,
@@ -368,21 +363,35 @@ export async function getMatches(req: Request, res: Response, next: NextFunction
     }
     const me = toSurvivorProfile(raw);
 
+    // Two-way inbox = people I swiped like/love on  ∪  people I've messaged with.
     const matchedLikes = await findMatchesBySender(me.id);
-    const receiverIds = matchedLikes.map((m) => m.receiverId);
-    const rawMatchedProfiles = await findSurvivorsByIds(receiverIds);
+    const statusById = new Map(matchedLikes.map((m) => [m.receiverId, m.status]));
+    const activity = await findChatActivity(me.id);
 
-    const mapped: MatchedSurvivorResponse[] = rawMatchedProfiles.map((rawSurvivor) => {
+    const ids = [
+      ...new Set([...statusById.keys(), ...Object.keys(activity)]),
+    ].filter((id) => id !== me.id);
+    const rawProfiles = await findSurvivorsByIds(ids);
+
+    const mapped: MatchedSurvivorResponse[] = rawProfiles.map((rawSurvivor) => {
       const survivor = toSurvivorProfile(rawSurvivor);
       const distance = calculateDistance(me.latitude, me.longitude, survivor.latitude, survivor.longitude);
-      const correspondingSwipe = matchedLikes.find((m) => m.receiverId === survivor.id);
+      // "love" only if explicitly super-liked; chat-only contacts default to "like".
+      const matchType: "like" | "love" =
+        statusById.get(survivor.id) === "love" ? "love" : "like";
+      const last = activity[survivor.id];
       return {
         ...survivor,
         distance,
-        matchType: (correspondingSwipe?.status || "like") as "like" | "love",
+        matchType,
+        lastMessageAt: last ? new Date(last.at).toISOString() : null,
+        lastMessage: last ? last.text : null,
         ...computePersonalRisk(survivor.supplies),
       };
     });
+
+    // Inbox order: most recent conversation first; pure matches (no messages) last.
+    mapped.sort((a, b) => (activity[b.id]?.at ?? 0) - (activity[a.id]?.at ?? 0));
 
     res.json(mapped);
   } catch (err) {
@@ -419,7 +428,6 @@ export async function sendMessage(req: Request, res: Response, next: NextFunctio
     const userId = req.user!.id;
 
     const newMessage = await createMessage(userId, survivorId, parsed.text);
-    scheduleAutoReply(survivorId, userId);
 
     const response: MessageResponse = {
       id: newMessage.id,

@@ -7,6 +7,22 @@ interface ChatListSidebarProps {
   onClose: () => void;
 }
 
+/** Compact inbox time: today → "3:14 PM", this year → "Mar 4", else "Mar 4, 24". */
+function formatInboxTime(iso?: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const now = new Date();
+  if (d.toDateString() === now.toDateString())
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleDateString(
+    [],
+    d.getFullYear() === now.getFullYear()
+      ? { month: "short", day: "numeric" }
+      : { year: "2-digit", month: "short", day: "numeric" }
+  );
+}
+
 const ChatListSidebar = ({ isOpen, onClose }: ChatListSidebarProps) => {
   const navigate = useNavigate();
   const { id: activeId } = useParams<{ id: string }>();
@@ -60,20 +76,35 @@ const ChatListSidebar = ({ isOpen, onClose }: ChatListSidebarProps) => {
                   )}
                 </div>
 
-                {/* Name */}
-                <div className="justify-center text-white text-lg md:text-xl font-medium truncate min-w-0">
-                  {survivor.name}
+                {/* Name + last-message preview */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-white text-lg md:text-xl font-medium truncate">
+                      {survivor.name}
+                    </span>
+                    {survivor.matchType === "love" && (
+                      <span className="text-[10px] text-purple-400 bg-purple-950/40 border border-purple-500/20 px-1 rounded shrink-0">
+                        <Heart fill="currentColor" />
+                      </span>
+                    )}
+                  </div>
+                  {survivor.lastMessage && (
+                    <div className="text-xs text-neutral-500 truncate">
+                      {survivor.lastMessage}
+                    </div>
+                  )}
                 </div>
-
-                {survivor.matchType === "love" && (
-                  <span className="text-[10px] text-purple-400 bg-purple-950/40 border border-purple-500/20 px-1 rounded shrink-0">
-                    <Heart fill="currentColor" />
-                  </span>
-                )}
               </div>
 
-              <div className="size-6 flex justify-center items-center text-white/80 shrink-0">
-                <ChevronRight size={18} strokeWidth={2.5} />
+              <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
+                {survivor.lastMessageAt && (
+                  <span className="text-[10px] text-neutral-500 whitespace-nowrap">
+                    {formatInboxTime(survivor.lastMessageAt)}
+                  </span>
+                )}
+                <span className="size-6 flex justify-center items-center text-white/80">
+                  <ChevronRight size={18} strokeWidth={2.5} />
+                </span>
               </div>
             </div>
           ))
