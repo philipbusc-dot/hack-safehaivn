@@ -1,10 +1,14 @@
 import { Router } from "express";
-import additionRouter from "./modules/addition/routers/addition.router";
-import multiplicationRouter from "./modules/multiplication/routers/multiplication.router";
+import knowledgeRouter from "./modules/knowledge/routers/knowledge.router";
+import aiRouter from "./modules/ai/routers/ai.router";
 
 const mainRouter = Router();
 
-mainRouter.use("/addition", additionRouter);
-mainRouter.use("/multiplication", multiplicationRouter);
+mainRouter.get("/health", (_req, res) => {
+  res.json({ status: "ok", service: "SafeHAIVN", time: new Date().toISOString() });
+});
+
+mainRouter.use("/knowledge", knowledgeRouter); // Feature 4 — Knowledge base CRUD
+mainRouter.use("/ai", aiRouter); //              Feature 4 — AI Survival Briefing
 
 export default mainRouter;
