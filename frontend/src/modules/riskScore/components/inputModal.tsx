@@ -7,11 +7,14 @@ type Props = {
     submitLabel?: string;
     initialName?: string;
     initialValue?: number | null;
+    initialUnit?: string;
     saving?: boolean;
     error?: string | null;
     onClose: () => void;
-    onSubmit: (name: string, value: number) => void;
+    onSubmit: (name: string, value: number, unit: string) => void;
 };
+
+const DEFAULT_UNIT = "days";
 
 export default function InputModal({
     isOpen,
@@ -19,6 +22,7 @@ export default function InputModal({
     submitLabel = "Save",
     initialName = "",
     initialValue = null,
+    initialUnit = DEFAULT_UNIT,
     saving = false,
     error = null,
     onClose,
@@ -28,15 +32,17 @@ export default function InputModal({
     const [days, setDays] = useState(
         initialValue === null ? "" : String(initialValue)
     );
+    const [unit, setUnit] = useState(initialUnit);
     const [localError, setLocalError] = useState("");
 
     useEffect(() => {
         if (isOpen) {
             setName(initialName);
             setDays(initialValue === null ? "" : String(initialValue));
+            setUnit(initialUnit || DEFAULT_UNIT);
             setLocalError("");
         }
-    }, [isOpen, initialName, initialValue]);
+    }, [isOpen, initialName, initialValue, initialUnit]);
 
     if (!isOpen) return null;
 
@@ -48,10 +54,14 @@ export default function InputModal({
             return;
         }
         if (!Number.isFinite(value) || value < 0) {
-            setLocalError("Days of supply must be 0 or more.");
+            setLocalError("The value must be 0 or more.");
             return;
         }
-        onSubmit(name.trim(), value);
+        if (!unit.trim()) {
+            setLocalError("A unit is required (e.g. days, kg, L).");
+            return;
+        }
+        onSubmit(name.trim(), value, unit.trim());
     };
 
     return createPortal(
@@ -82,17 +92,30 @@ export default function InputModal({
                     />
                 </label>
 
-                <label className="flex flex-col gap-1 text-xs text-muted font-bold">
-                    Statistic Value
-                    <input
-                        type="number"
-                        min={0}
-                        className="bg-surface rounded-lg text-sm px-3 py-2 text-white"
-                        placeholder="Type Here"
-                        value={days}
-                        onChange={(e) => setDays(e.target.value)}
-                    />
-                </label>
+                <div className="flex flex-row gap-3">
+                    <label className="flex flex-1 flex-col gap-1 text-xs text-muted font-bold">
+                        Statistic Value
+                        <input
+                            type="number"
+                            min={0}
+                            className="bg-surface rounded-lg text-sm px-3 py-2 text-white"
+                            placeholder="Type Here"
+                            value={days}
+                            onChange={(e) => setDays(e.target.value)}
+                        />
+                    </label>
+
+                    <label className="flex w-28 flex-col gap-1 text-xs text-muted font-bold">
+                        Unit
+                        <input
+                            type="text"
+                            className="bg-surface rounded-lg text-sm px-3 py-2 text-white"
+                            placeholder="days"
+                            value={unit}
+                            onChange={(e) => setUnit(e.target.value)}
+                        />
+                    </label>
+                </div>
 
                 {(localError || error) && (
                     <p className="text-danger text-sm">{localError || error}</p>

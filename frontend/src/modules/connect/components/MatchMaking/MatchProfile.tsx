@@ -13,20 +13,36 @@ const MatchProfile = ({ survivor }: MatchProfileProps) => {
         setPrevId(survivor.id);
         setImgFailed(false);
     }
-    // Helper to generate deterministic values based on survivor's properties
-    const getRiskScore = () => {
-        if (survivor.regionalRiskScore !== undefined) return survivor.regionalRiskScore;
-        const totalSupplies = (survivor.supplies || []).reduce((acc, curr) => acc + curr.value, 0);
+    // Personal risk factor comes from the RiskFactor module (computed server-side
+    // from this survivor's statistics). Fall back to a supply-derived estimate for
+    // any legacy profile that hasn't been enriched yet.
+    const getRiskScore = (): number => {
+        if (typeof survivor.personalRiskScore === "number")
+            return survivor.personalRiskScore;
+        if (survivor.regionalRiskScore !== undefined)
+            return Number(survivor.regionalRiskScore) || 0;
+        const totalSupplies = (survivor.supplies || []).reduce(
+            (acc, curr) => acc + curr.value,
+            0
+        );
         return Math.max(15, Math.min(95, 100 - totalSupplies));
     };
 
-    const riskVal = typeof getRiskScore() === "number" ? (getRiskScore() as number) : parseInt(getRiskScore() as string) || 0;
+    const riskVal = getRiskScore();
+    const dangerLevel =
+        survivor.personalDangerLevel ??
+        (riskVal >= 66 ? "HIGH" : riskVal >= 33 ? "MODERATE" : "LOW");
+    const riskScoreLabel = `${riskVal}/100 (${dangerLevel})`;
 
-    let riskScoreLabel = `${riskVal}/100`;
-    if (riskVal >= 80) riskScoreLabel += " (CRITICAL)";
-    else if (riskVal >= 50) riskScoreLabel += " (HIGH)";
-    else if (riskVal >= 25) riskScoreLabel += " (MODERATE)";
-    else riskScoreLabel += " (LOW)";
+    // Statistics (name/value/unit) from the RiskFactor module; fall back to the
+    // legacy supplies shape if statistics aren't present.
+    const statistics =
+        survivor.statistics ??
+        (survivor.supplies ?? []).map((s) => ({
+            name: s.label,
+            value: s.value,
+            unit: s.unit,
+        }));
 
     return (
         <div className="w-full max-w-[834px] px-4 pt-10 pb-20 flex flex-col justify-start items-center gap-4 mx-auto overflow-y-auto">
@@ -86,23 +102,29 @@ const MatchProfile = ({ survivor }: MatchProfileProps) => {
             {/* Information grid */}
             <div className="self-stretch px-4 py-4 bg-neutral-900 border border-neutral-800 rounded-lg flex flex-col justify-start items-start gap-3 overflow-hidden">
                 <div className="self-stretch text-indigo-50 text-lg md:text-xl font-medium font-['Inter'] uppercase tracking-wider">
-                    hazard & supply status
+                    risk factor & statistics
                 </div>
 
                 <div className="self-stretch grid grid-cols-1 gap-x-8 gap-y-3 font-mono">
                     <div className="flex justify-between items-center py-1.5 border-b border-neutral-800">
-                        <div className="text-neutral-400 text-xs">Regional Risk Score</div>
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded ${riskVal >= 80 ? "bg-red-950/50 text-red-400 border border-red-900/50" :
-                            riskVal >= 50 ? "bg-amber-950/50 text-amber-400 border border-amber-900/50" :
+                        <div className="text-neutral-400 text-xs">Personal Risk Factor</div>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded ${dangerLevel === "HIGH" ? "bg-red-950/50 text-red-400 border border-red-900/50" :
+                            dangerLevel === "MODERATE" ? "bg-amber-950/50 text-amber-400 border border-amber-900/50" :
                                 "bg-lime-950/50 text-lime-400 border border-lime-900/50"
                             }`}>
                             {riskScoreLabel}
                         </span>
                     </div>
-                    {survivor.supplies?.map((supply, idx) => (
-                        <div key={supply.label} className={`flex justify-between items-center py-1.5 ${idx < survivor.supplies!.length - 1 ? "border-b border-neutral-800" : ""}`}>
-                            <div className="text-neutral-400 text-xs">{supply.label}</div>
-                            <div className="text-indigo-50 text-xs font-semibold">{supply.value} {supply.unit}</div>
+                    {survivor.limitingStat && (
+                        <div className="flex justify-between items-center py-1.5 border-b border-neutral-800">
+                            <div className="text-neutral-400 text-xs">Weakest link</div>
+                            <div className="text-indigo-50 text-xs font-semibold">{survivor.limitingStat}</div>
+                        </div>
+                    )}
+                    {statistics.map((stat, idx) => (
+                        <div key={stat.name} className={`flex justify-between items-center py-1.5 ${idx < statistics.length - 1 ? "border-b border-neutral-800" : ""}`}>
+                            <div className="text-neutral-400 text-xs">{stat.name}</div>
+                            <div className="text-indigo-50 text-xs font-semibold">{stat.value} {stat.unit}</div>
                         </div>
                     ))}
                 </div>

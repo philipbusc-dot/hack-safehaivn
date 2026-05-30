@@ -3,10 +3,14 @@ export type DangerLevel = "LOW" | "MODERATE" | "HIGH";
 export interface SurvivalStatInput {
   name: string;
   value: number;
+  unit?: string;
 }
 
-export interface SurvivalStat extends SurvivalStatInput {
+export interface SurvivalStat {
   id: string;
+  name: string;
+  value: number;
+  unit: string;
   userId: string;
 }
 

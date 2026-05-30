@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useParams } from "react-router-dom";
 import {
   getReports,
   createReport,
@@ -8,14 +9,6 @@ import {
 import type { CountryReport } from "../types/countryReport.types";
 import { useIsAdmin } from "../../auth/components/AdminOnly";
 
-const EMPTY = {
-  countryCode: "",
-  countryName: "",
-  severity: "Moderate",
-  cases: 0,
-  note: "",
-};
-
 const severityColor: Record<string, string> = {
   High: "bg-red-500",
   Moderate: "bg-yellow-400 text-black",
@@ -23,17 +16,36 @@ const severityColor: Record<string, string> = {
 };
 
 export default function CountryReportPage() {
+  const { countryCode = "" } = useParams();
+  const code = countryCode.toUpperCase();
+  // The map passes the country's display name through navigation state so we
+  // can show it even before any report exists for this country.
+  const location = useLocation();
+  const passedName = (location.state as { countryName?: string } | null)
+    ?.countryName;
+
   const [reports, setReports] = useState<CountryReport[]>([]);
-  const [form, setForm] = useState({ ...EMPTY });
+  const emptyForm = useMemo(
+    () => ({
+      countryCode: code,
+      countryName: passedName ?? "",
+      severity: "Moderate",
+      cases: 0,
+      note: "",
+    }),
+    [code, passedName]
+  );
+  const [form, setForm] = useState({ ...emptyForm });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const isAdmin = useIsAdmin();
 
-  // READ — load all reports
+  // READ — load this country's reports (newest first from the backend).
   async function load() {
     try {
-      setReports(await getReports());
+      const all = await getReports();
+      setReports(all.filter((r) => r.countryCode.toUpperCase() === code));
     } catch {
       setError("Could not load reports (is the backend running?)");
     } finally {
@@ -42,20 +54,26 @@ export default function CountryReportPage() {
   }
   useEffect(() => {
     load();
-  }, []);
+    // Reset the form whenever the country changes.
+    setForm({ ...emptyForm });
+    setEditingId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code]);
+
+  const countryName = passedName ?? reports[0]?.countryName ?? code;
 
   // CREATE or UPDATE
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     try {
-      const payload = { ...form, cases: Number(form.cases) };
+      const payload = { ...form, countryCode: code, cases: Number(form.cases) };
       if (editingId === null) {
         await createReport(payload);
       } else {
         await updateReport(editingId, payload);
       }
-      setForm({ ...EMPTY });
+      setForm({ ...emptyForm });
       setEditingId(null);
       load();
     } catch {
@@ -85,76 +103,83 @@ export default function CountryReportPage() {
   return (
     <div className="min-h-screen w-full bg-[#0A1613] text-white p-8">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold mb-1 text-[#A4D233]">Country Reports</h1>
+        <Link
+          to="/map"
+          className="text-sm text-gray-400 hover:text-[#A4D233] transition-colors"
+        >
+          ← Back to map
+        </Link>
+        <h1 className="text-3xl font-bold mb-1 mt-3 text-[#A4D233]">
+          {countryName} Reports
+        </h1>
         <p className="text-sm text-gray-400 mb-6">
           {isAdmin
-            ? "Create, edit, and delete outbreak reports (full CRUD)."
-            : "Outbreak reports (read-only). Sign in as an admin to edit."}
+            ? `Create, edit, and delete outbreak reports for ${countryName}.`
+            : `All outbreak reports for ${countryName} (read-only).`}
         </p>
 
         {/* CREATE / EDIT form — admin only */}
         {isAdmin && (
-        <form
-          onSubmit={handleSubmit}
-          className="bg-[#13241E] border border-[#1D3A33] rounded-xl p-5 mb-8 grid grid-cols-2 gap-3"
-        >
-          <input
-            className="bg-[#0A1613] border border-[#2E4A40] rounded px-3 py-2"
-            placeholder="Country code (e.g. IT)"
-            value={form.countryCode}
-            onChange={(e) => setForm({ ...form, countryCode: e.target.value })}
-            required
-          />
-          <input
-            className="bg-[#0A1613] border border-[#2E4A40] rounded px-3 py-2"
-            placeholder="Country name (e.g. Italy)"
-            value={form.countryName}
-            onChange={(e) => setForm({ ...form, countryName: e.target.value })}
-            required
-          />
-          <select
-            className="bg-[#0A1613] border border-[#2E4A40] rounded px-3 py-2"
-            value={form.severity}
-            onChange={(e) => setForm({ ...form, severity: e.target.value })}
+          <form
+            onSubmit={handleSubmit}
+            className="bg-[#13241E] border border-[#1D3A33] rounded-xl p-5 mb-8 grid grid-cols-2 gap-3"
           >
-            <option>High</option>
-            <option>Moderate</option>
-            <option>Low</option>
-          </select>
-          <input
-            type="number"
-            className="bg-[#0A1613] border border-[#2E4A40] rounded px-3 py-2"
-            placeholder="Cases"
-            value={form.cases}
-            onChange={(e) => setForm({ ...form, cases: Number(e.target.value) })}
-          />
-          <input
-            className="bg-[#0A1613] border border-[#2E4A40] rounded px-3 py-2 col-span-2"
-            placeholder="Note (optional)"
-            value={form.note}
-            onChange={(e) => setForm({ ...form, note: e.target.value })}
-          />
-          <div className="col-span-2 flex gap-3">
-            <button
-              type="submit"
-              className="bg-[#A4D233] text-black font-semibold rounded px-4 py-2"
+            <input
+              className="bg-[#0A1613] border border-[#2E4A40] rounded px-3 py-2 text-gray-400"
+              value={code}
+              disabled
+              aria-label="Country code"
+            />
+            <input
+              className="bg-[#0A1613] border border-[#2E4A40] rounded px-3 py-2"
+              placeholder="Country name (e.g. Italy)"
+              value={form.countryName}
+              onChange={(e) => setForm({ ...form, countryName: e.target.value })}
+              required
+            />
+            <select
+              className="bg-[#0A1613] border border-[#2E4A40] rounded px-3 py-2"
+              value={form.severity}
+              onChange={(e) => setForm({ ...form, severity: e.target.value })}
             >
-              {editingId === null ? "Add report" : "Save changes"}
-            </button>
-            {editingId !== null && (
+              <option>High</option>
+              <option>Moderate</option>
+              <option>Low</option>
+            </select>
+            <input
+              type="number"
+              className="bg-[#0A1613] border border-[#2E4A40] rounded px-3 py-2"
+              placeholder="Cases"
+              value={form.cases}
+              onChange={(e) => setForm({ ...form, cases: Number(e.target.value) })}
+            />
+            <input
+              className="bg-[#0A1613] border border-[#2E4A40] rounded px-3 py-2 col-span-2"
+              placeholder="Note (optional)"
+              value={form.note}
+              onChange={(e) => setForm({ ...form, note: e.target.value })}
+            />
+            <div className="col-span-2 flex gap-3">
               <button
-                type="button"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm({ ...EMPTY });
-                }}
-                className="border border-[#2E4A40] rounded px-4 py-2 text-gray-300"
+                type="submit"
+                className="bg-[#A4D233] text-black font-semibold rounded px-4 py-2"
               >
-                Cancel
+                {editingId === null ? "Add report" : "Save changes"}
               </button>
-            )}
-          </div>
-        </form>
+              {editingId !== null && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingId(null);
+                    setForm({ ...emptyForm });
+                  }}
+                  className="border border-[#2E4A40] rounded px-4 py-2 text-gray-300"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
         )}
 
         {error && <p className="text-red-400 mb-4">{error}</p>}
@@ -163,7 +188,10 @@ export default function CountryReportPage() {
         {loading ? (
           <p className="text-gray-400">Loading…</p>
         ) : reports.length === 0 ? (
-          <p className="text-gray-400">No reports yet — add one above.</p>
+          <p className="text-gray-400">
+            No reports yet for {countryName}
+            {isAdmin ? " — add one above." : "."}
+          </p>
         ) : (
           <div className="space-y-3">
             {reports.map((r) => (

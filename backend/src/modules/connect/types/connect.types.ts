@@ -41,10 +41,38 @@ export interface SupplyItem {
   unit: string;
 }
 
+// ─── Risk Factor (shared with the riskScore/personalRisk module) ──────────────
+
+export type DangerLevel = "LOW" | "MODERATE" | "HIGH";
+
+/**
+ * A survival statistic as modeled by the RiskFactor module: a named resource
+ * with a numeric value and a unit (e.g. "Water Stock" / 30 / "days").
+ */
+export interface SurvivalStatistic {
+  name: string;
+  value: number;
+  unit: string;
+}
+
+/**
+ * A survivor's personal risk factor, computed with the RiskFactor module's
+ * formula library (lib/formulas) from their survival statistics.
+ */
+export interface PersonalRisk {
+  /** 0–100 personal danger score (PSI). */
+  personalRiskScore: number;
+  personalDangerLevel: DangerLevel;
+  /** The weakest-link statistic that drives the score, if any. */
+  limitingStat: string | null;
+  /** The survivor's statistics: name + value + unit. */
+  statistics: SurvivalStatistic[];
+}
+
 // ─── Survivor / Nearby Survivors ─────────────────────────────────────────────
 
 /** Full survivor profile enriched with computed fields for the nearby-feed */
-export interface SurvivorProfileResponse extends Survivor {
+export interface SurvivorProfileResponse extends Survivor, PersonalRisk {
   /** Human-readable Haversine distance, e.g. "3.2 km" or "850 m" */
   distance: string;
   /** 10–99 compatibility score */
@@ -58,10 +86,15 @@ export interface SurvivorProfileResponse extends Survivor {
 // ─── Matches ──────────────────────────────────────────────────────────────────
 
 /** Matched survivor profile enriched with distance and the swipe type */
-export interface MatchedSurvivorResponse extends Survivor {
+export interface MatchedSurvivorResponse extends Survivor, PersonalRisk {
   distance: string;
   matchType: "like" | "love";
   /** Structured supply inventory list */
+  supplies: SupplyItem[];
+}
+
+/** Current-user profile enriched with their own personal risk factor. */
+export interface CurrentUserResponse extends Survivor, PersonalRisk {
   supplies: SupplyItem[];
 }
 

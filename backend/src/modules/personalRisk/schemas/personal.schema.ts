@@ -6,6 +6,12 @@ export const statCreateSchema = z.object({
     .number({ message: "value must be a number (days of supply)" })
     .min(0, "value must be >= 0")
     .max(3650, "value must be <= 3650 days"),
+  unit: z
+    .string()
+    .trim()
+    .min(1, "unit must not be empty")
+    .max(20, "unit must be <= 20 characters")
+    .optional(),
 });
 
 export const statUpdateSchema = statCreateSchema

@@ -3,14 +3,23 @@ import { TriangleAlert } from "lucide-react";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import { Doughnut } from "react-chartjs-2";
 import { calculateRegionRisk } from "../apis/risk.api";
-import { DANGER_STYLE, REGIONS } from "../data/regions";
-import type { RegionRiskPreview } from "../types/risk.types";
+import { DANGER_STYLE } from "../data/regions";
+import {
+    useCountries,
+    useUserCountry,
+    haversineKm,
+} from "../hooks/useCountries";
+import type { Country, RegionRiskPreview } from "../types/risk.types";
 import { useNavigate } from "react-router-dom";
 import RiskCard from "../components/riskCard";
+import CountrySearch from "../components/countrySearch";
 import 'katex/dist/katex.min.css';
-import Latex from '../Latex'; 
+import Latex from '../Latex';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
+
+// How many geographically-nearest countries to score for the "Nearby Regions" list.
+const NEARBY_COUNT = 6;
 
 const FACTOR_META: {
     key: keyof RegionRiskPreview["factors"];
@@ -25,24 +34,38 @@ const FACTOR_META: {
     ];
 
 export default function RegionalRisk() {
-    const [regionIndex, setRegionIndex] = useState(0);
+    const { countries, loading: countriesLoading } = useCountries();
+    const userCountry = useUserCountry(countries);
+
+    const [selected, setSelected] = useState<Country | null>(null);
+    const [touched, setTouched] = useState(false);
     const [data, setData] = useState<RegionRiskPreview | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
     const [nearby, setNearby] = useState<{ label: string; score: number }[]>([]);
 
-    const region = REGIONS[regionIndex]!;
+    // Seed an initial country once the list loads (Thailand, else the first one),
+    // so the page is useful even before geolocation resolves or if it's denied.
+    useEffect(() => {
+        if (touched || selected || countries.length === 0) return;
+        setSelected(countries.find((c) => c.iso2 === "TH") ?? countries[0]!);
+    }, [countries, selected, touched]);
 
     useEffect(() => {
+        if (!touched && userCountry) setSelected(userCountry);
+    }, [userCountry, touched]);
+
+    useEffect(() => {
+        if (!selected) return;
         let cancelled = false;
         setLoading(true);
         setError(null);
 
         calculateRegionRisk({
-            country: region.country,
-            lat: region.lat,
-            lng: region.lng,
+            country: selected.iso2,
+            lat: selected.lat,
+            lng: selected.lng,
         })
             .then((res) => {
                 if (!cancelled) setData(res);
@@ -58,19 +81,28 @@ export default function RegionalRisk() {
         return () => {
             cancelled = true;
         };
-    }, [region.country, region.lat, region.lng]);
-
+    }, [selected]);
     useEffect(() => {
+        if (!selected || countries.length === 0) return;
         let cancelled = false;
 
+        const neighbors = [...countries]
+            .filter((c) => c.iso2 !== selected.iso2)
+            .sort(
+                (a, b) =>
+                    haversineKm(selected.lat, selected.lng, a.lat, a.lng) -
+                    haversineKm(selected.lat, selected.lng, b.lat, b.lng)
+            )
+            .slice(0, NEARBY_COUNT);
+
         Promise.all(
-            REGIONS.map(async (r) => ({
-                label: r.label,
+            neighbors.map(async (c) => ({
+                label: c.name,
                 score: (
                     await calculateRegionRisk({
-                        country: r.country,
-                        lat: r.lat,
-                        lng: r.lng,
+                        country: c.iso2,
+                        lat: c.lat,
+                        lng: c.lng,
                     })
                 ).regionalScore,
             }))
@@ -78,15 +110,18 @@ export default function RegionalRisk() {
             .then((results) => {
                 if (!cancelled) setNearby(results);
             })
+            .catch(() => {
+                /* nearby panel is best-effort */
+            });
 
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [selected, countries]);
 
     const style = data ? DANGER_STYLE[data.dangerLevel] : DANGER_STYLE.LOW;
     const saferRegions = nearby
-        .filter((n) => n.label !== region.label && n.score < (data?.regionalScore ?? 0))
+        .filter((n) => n.score < (data?.regionalScore ?? 0))
         .sort((a, b) => b.score - a.score);
     const chartData = useMemo(() => {
         const score = data?.regionalScore ?? 0;
@@ -115,7 +150,7 @@ export default function RegionalRisk() {
             </div>
 
             <div className="flex flex-row w-full gap-3">
-                <button className="flex w-full justify-center p-1 bg-accent rounded-full italic font-bold text-xs items-center">
+                <button className="flex w-full justify-center p-1 bg-accent text-black rounded-full italic font-bold text-xs items-center">
                     Regional Score
                 </button>
                 <button onClick={() => navigate("/risk/yourscore")} className="flex w-full justify-center p-1 border border-line text-faint rounded-full italic text-xs items-center cursor-pointer">
@@ -128,20 +163,28 @@ export default function RegionalRisk() {
             <div className="flex flex-col md:flex-row gap-5 items-center justify-center">
                 <div className="flex flex-col flex-1 w-full">
                     <div className="my-3 w-full">
-                        <select
-                            className="border w-full bg-drop rounded-full text-xs px-3 py-1"
-                            value={regionIndex}
-                            onChange={(e) => setRegionIndex(Number(e.target.value))}
-                        >
-                            {REGIONS.map((r, i) => (
-                                <option key={r.label} value={i}>
-                                    {r.label}
-                                </option>
-                            ))}
-                        </select>
+                        <CountrySearch
+                            countries={countries}
+                            value={selected}
+                            loading={countriesLoading}
+                            onChange={(c) => {
+                                setTouched(true);
+                                setSelected(c);
+                            }}
+                        />
                     </div>
                     <div className="flex bg-surface border-2 border-line w-full h-full justify-center items-center p-20 rounded-2xl">
-                        <div className="flex flex-col gap-10 justify-center items-center">
+                        <div className="flex flex-col gap-5 justify-center items-center">
+                            <span className="flex items-center gap-2 text-white font-bold text-lg">
+                                {selected?.flag && (
+                                    <img
+                                        src={selected.flag}
+                                        alt=""
+                                        className="w-6 h-4 object-cover rounded-sm"
+                                    />
+                                )}
+                                {selected?.name ?? "—"}
+                            </span>
                             <div className="relative w-48 h-48">
                                 <Doughnut
                                     data={chartData}
@@ -200,7 +243,7 @@ export default function RegionalRisk() {
                     <div className="flex flex-col gap-2 w-full">
                         {saferRegions.length === 0 ? (
                             <p className="text-muted text-xs">
-                                No nearby regions are safer than {region.label}.
+                                No nearby regions are safer than {selected?.name ?? "this country"}.
                             </p>
                         ) : (
                             saferRegions.map((n) => (

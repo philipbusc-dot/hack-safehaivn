@@ -49,6 +49,7 @@ model SurvivalStat {
   id     String @id @default(cuid())
   name   String
   value  Float
+  unit   String @default("days") // denominator for the value, e.g. "days", "kg", "L"
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

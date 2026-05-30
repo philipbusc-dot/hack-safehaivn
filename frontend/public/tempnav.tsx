@@ -7,7 +7,6 @@ const LINKS: { to: string; label: string; match?: string }[] = [
   { to: "/ai", label: "AI" },
   { to: "/map", label: "Map" },
   { to: "/risk/region", label: "RiskFactor", match: "/risk" },
-  { to: "/reports", label: "Reports" },
   { to: "/connect", label: "Connect" },
 ];
 

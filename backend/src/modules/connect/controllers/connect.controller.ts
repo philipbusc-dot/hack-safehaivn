@@ -3,11 +3,15 @@ import { locationSchema, swipeSchema, messageSchema } from "../schemas/connect.s
 import type {
   SurvivorProfileResponse,
   MatchedSurvivorResponse,
+  CurrentUserResponse,
+  PersonalRisk,
   SwipeResponse,
   MessageResponse,
   EditMessageResponse,
   DeleteMessageResponse,
 } from "../types/connect.types";
+import type { SupplyItem } from "../types/connect.types";
+import { computeResourceMitigation, riskToDanger } from "../../../lib/formulas";
 import {
   findCurrentUser,
   findAllSurvivors,
@@ -48,6 +52,58 @@ function getSupplyValue(supplies: any[] | undefined, label: string): number {
   if (!supplies) return 0;
   const item = supplies.find((s) => s.label.toLowerCase() === label.toLowerCase());
   return item ? item.value : 0;
+}
+
+// ─── RiskFactor integration ───────────────────────────────────────────────────
+// A survivor's supplies ARE their RiskFactor "survival statistics" (name/value/
+// unit). We reuse the RiskFactor module's own formula library so the personal
+// risk shown here is computed identically to the RiskFactor pages.
+
+/**
+ * Regional danger baseline (0–100) for the survivors' shared operating zone.
+ * In the RiskFactor module this comes from the live regional score; here we use
+ * a fixed pandemic-zone baseline so each survivor's personal risk varies only by
+ * how well-supplied they are (their weakest-link statistic).
+ */
+const REGIONAL_BASELINE = 70;
+
+/** Map a survivor's supplies to RiskFactor statistics: { name, value, unit }. */
+function toStatistics(supplies: SupplyItem[] | undefined) {
+  return (supplies ?? []).map((s) => ({
+    name: s.label,
+    value: s.value,
+    unit: s.unit,
+  }));
+}
+
+/**
+ * Compute a survivor's personal risk factor from their statistics using the
+ * RiskFactor formula: the weakest-link (minimum-value) statistic provides
+ * resource mitigation that is subtracted from the regional baseline.
+ */
+function computePersonalRisk(supplies: SupplyItem[] | undefined): PersonalRisk {
+  const statistics = toStatistics(supplies);
+
+  let limitingStat: string | null = null;
+  let limitingValue: number | null = null;
+  for (const s of statistics) {
+    if (limitingValue === null || s.value < limitingValue) {
+      limitingValue = s.value;
+      limitingStat = s.name;
+    }
+  }
+
+  const mitigation =
+    limitingValue === null ? 0 : computeResourceMitigation(limitingValue);
+  const personalRiskScore =
+    Math.round(Math.max(0, REGIONAL_BASELINE - mitigation) * 10) / 10;
+
+  return {
+    personalRiskScore,
+    personalDangerLevel: riskToDanger(personalRiskScore),
+    limitingStat,
+    statistics,
+  };
 }
 
 /** Algorithmic compatibility scoring based on supplies (medkit, waterStock, foodStock) */
@@ -161,7 +217,16 @@ export async function getCurrentUser(req: Request, res: Response, next: NextFunc
       res.status(404).json({ error: "Current user profile not found." });
       return;
     }
-    res.json(user);
+    const response: CurrentUserResponse = {
+      ...user,
+      supplies: (user.supplies ?? []).map((s) => ({
+        label: s.label,
+        value: s.value,
+        unit: s.unit,
+      })),
+      ...computePersonalRisk(user.supplies),
+    };
+    res.json(response);
   } catch (err) {
     next(err);
   }
@@ -205,7 +270,14 @@ export async function getNearbySurvivors(req: Request, res: Response, next: Next
           unit: s.unit,
         }));
 
-        return { ...survivor, distance, compatibilityScore: comp.score, aiOpinion, supplies };
+        return {
+          ...survivor,
+          distance,
+          compatibilityScore: comp.score,
+          aiOpinion,
+          supplies,
+          ...computePersonalRisk(survivor.supplies),
+        };
       })
     );
 
@@ -283,7 +355,13 @@ export async function getMatches(req: Request, res: Response, next: NextFunction
         value: s.value,
         unit: s.unit,
       }));
-      return { ...survivor, distance, matchType: (correspondingSwipe?.status || "like") as "like" | "love", supplies };
+      return {
+        ...survivor,
+        distance,
+        matchType: (correspondingSwipe?.status || "like") as "like" | "love",
+        supplies,
+        ...computePersonalRisk(survivor.supplies),
+      };
     });
 
     res.json(mapped);

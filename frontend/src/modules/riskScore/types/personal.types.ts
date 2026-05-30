@@ -4,12 +4,14 @@ export interface SurvivalStat {
   id: string;
   name: string;
   value: number;
+  unit: string;
   userId: string;
 }
 
 export interface SurvivalStatInput {
   name: string;
   value: number;
+  unit?: string;
 }
 
 

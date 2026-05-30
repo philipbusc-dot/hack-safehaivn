@@ -51,7 +51,7 @@ export async function listStats() {
 export async function addStat(input: SurvivalStatInput) {
   const userId = await getDemoUserId();
   return prisma.survivalStat.create({
-    data: { name: input.name, value: input.value, userId },
+    data: { name: input.name, value: input.value, unit: input.unit, userId },
   });
 }
 

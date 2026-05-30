@@ -22,6 +22,15 @@ export interface RegionInput {
   lng: number;
 }
 
+/** A searchable country derived from the live map data (disease.sh). */
+export interface Country {
+  name: string; // human-readable name, e.g. "Thailand"
+  iso2: string; // ISO alpha-2 code, e.g. "TH"
+  lat: number;
+  lng: number;
+  flag?: string; // flag image URL
+}
+
 /** Response body of POST /regions/calculate. */
 export interface RegionRiskPreview {
   factors: RiskFactors;

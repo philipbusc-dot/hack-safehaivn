@@ -4,7 +4,7 @@ import TempNav from "../public/tempnav";
 /** Root shell: command-center backdrop + nav bar + routed feature view. */
 const App = () => {
   return (
-    <div className="relative flex min-h-screen w-full flex-col bg-bg font-sans text-ink antialiased">
+    <div className="relative flex min-h-screen w-full flex-col font-sans text-ink antialiased">
       {/* Signature backdrop: two radial glows + a faint 30px grid. */}
       <div
         aria-hidden

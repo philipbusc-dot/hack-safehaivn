@@ -34,6 +34,15 @@ export interface SupplyItem {
   unit: string;
 }
 
+export type DangerLevel = "LOW" | "MODERATE" | "HIGH";
+
+/** A survival statistic from the RiskFactor module: name + value + unit. */
+export interface SurvivalStatistic {
+  name: string;
+  value: number;
+  unit: string;
+}
+
 // ─── Survivor Profile ─────────────────────────────────────────────────────────
 
 /** Survivor profile as returned by GET /connect/survivors (nearby feed) */
@@ -51,7 +60,16 @@ export interface SurvivorProfile {
   compatibilityScore?: number;
   /** Set when this profile came from GET /connect/matches */
   matchType?: "like" | "love" | null;
-  // RiskFactor and Setting properties
+  // ─── RiskFactor module integration ───
+  /** 0–100 personal risk factor (PSI), computed from this survivor's statistics. */
+  personalRiskScore?: number;
+  /** Danger band derived from the personal risk score. */
+  personalDangerLevel?: DangerLevel;
+  /** The weakest-link statistic driving the personal risk score. */
+  limitingStat?: string | null;
+  /** The survivor's RiskFactor statistics: name + value + unit. */
+  statistics?: SurvivalStatistic[];
+  /** @deprecated kept for backward compatibility; prefer personalRiskScore. */
   regionalRiskScore?: string | number;
   /** Structured supply inventory list */
   supplies?: SupplyItem[];

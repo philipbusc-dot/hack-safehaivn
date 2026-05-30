@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import Globe from "react-globe.gl";
 import { fetchCountries, fetchGeo } from "../apis/map.api";
 import { getReports } from "../../countryReport/apis/countryReport.api";
+import type { CountryReport } from "../../countryReport/types/countryReport.types";
 import type { Stat } from "../types/map.types";
 
 const SEV_COLOR: Record<string, string> = {
@@ -30,6 +32,7 @@ export default function MapPage() {
   const [byIso, setByIso] = useState<Record<string, Stat>>({});
   const [byName, setByName] = useState<Record<string, Stat>>({});
   const [reportSeverity, setReportSeverity] = useState<Record<string, string>>({});
+  const [reports, setReports] = useState<CountryReport[]>([]);
   const [hover, setHover] = useState<any>(null);
   const [selected, setSelected] = useState<any>(null);
 
@@ -58,8 +61,10 @@ export default function MapPage() {
   useEffect(() => {
     getReports()
       .then((rs) => {
+        setReports(rs);
         const m: Record<string, string> = {};
-        for (const r of rs) m[r.countryCode] = r.severity;
+        // rs is newest-first; the first per code wins as the headline severity.
+        for (const r of rs) if (!(r.countryCode in m)) m[r.countryCode] = r.severity;
         setReportSeverity(m);
       })
       .catch(() => {});
@@ -73,6 +78,11 @@ export default function MapPage() {
     const rep = reportSeverity[f.properties.ISO_A2];
     if (rep) return SEV_COLOR[rep] ?? "#3a3f55"; // your report wins
     return bucketColor(statOf(f)?.casesPerOneMillion);
+  };
+
+  const reportsOf = (f: any): CountryReport[] => {
+    const code = (f.properties.ISO_A2 ?? "").toUpperCase();
+    return reports.filter((r) => r.countryCode.toUpperCase() === code);
   };
 
   return (
@@ -113,6 +123,7 @@ export default function MapPage() {
           feature={selected}
           stat={statOf(selected)}
           reportSeverity={reportSeverity[selected.properties.ISO_A2]}
+          reports={reportsOf(selected)}
           onClose={() => setSelected(null)}
         />
       )}
@@ -145,25 +156,31 @@ function Panel({
   feature,
   stat,
   reportSeverity,
+  reports,
   onClose,
 }: {
   feature: any;
   stat?: Stat;
   reportSeverity?: string;
+  reports: CountryReport[];
   onClose: () => void;
 }) {
+  const code = feature.properties.ISO_A2;
+  const countryName = feature.properties.ADMIN;
   const badgeColor = reportSeverity
     ? SEV_COLOR[reportSeverity] ?? "#888"
     : bucketColor(stat?.casesPerOneMillion);
   const label = reportSeverity
     ? `${reportSeverity} (your report)`
     : bucketLabel(stat?.casesPerOneMillion);
+  // reports arrive newest-first; show only the latest few here.
+  const latest = reports.slice(0, 3);
   return (
     <div className="absolute top-24 right-6 z-10 w-72 p-5 rounded-2xl bg-[#13241E]/90 border border-[#A4D233]/40 backdrop-blur">
       <button onClick={onClose} className="float-right text-gray-400">
         ✕
       </button>
-      <h2 className="text-lg font-bold mb-2">{feature.properties.ADMIN}</h2>
+      <h2 className="text-lg font-bold mb-2">{countryName}</h2>
       <span
         className="inline-block px-3 py-0.5 rounded-full text-xs font-bold text-black mb-3"
         style={{ background: badgeColor }}
@@ -182,6 +199,41 @@ function Panel({
       ) : (
         <p className="text-gray-400 text-sm">No data for this country.</p>
       )}
+
+      <div className="mt-4 border-t border-[#1D3A33] pt-3">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-bold">Latest reports</h3>
+          <Link
+            to={`/reports/${code}`}
+            state={{ countryName }}
+            className="text-xs text-[#A4D233] hover:underline"
+          >
+            See all{reports.length ? ` (${reports.length})` : ""}
+          </Link>
+        </div>
+        {latest.length === 0 ? (
+          <p className="text-gray-400 text-xs">No reports yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {latest.map((r) => (
+              <li key={r.id} className="text-xs">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[10px] font-bold text-black"
+                    style={{ background: SEV_COLOR[r.severity] ?? "#888" }}
+                  >
+                    {r.severity}
+                  </span>
+                  <span className="text-gray-300">
+                    {r.cases.toLocaleString()} cases
+                  </span>
+                </div>
+                {r.note && <p className="text-gray-400 mt-0.5">{r.note}</p>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

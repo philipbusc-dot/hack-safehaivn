@@ -3,6 +3,7 @@ import { Pencil, Trash2 } from "lucide-react";
 type Props = {
     factor: string;
     score: number | undefined;
+    unit?: string;
     isWeakestLink: boolean;
     accentColor?: string;
     onDelete: () => void;
@@ -12,6 +13,7 @@ type Props = {
 export default function FactorCard({
     factor,
     score,
+    unit,
     isWeakestLink,
     accentColor,
     onDelete,
@@ -51,8 +53,12 @@ export default function FactorCard({
                         <Pencil size={16} />
                     </button>
                 )}
-                <span className="font-bold text-lg">{score ?? "—"}d</span>
-
+                <span className="font-bold text-lg">
+                    {score ?? "—"}
+                    {score !== undefined && unit && (
+                        <span className="ml-1 text-xs font-normal text-faint">{unit}</span>
+                    )}
+                </span>
             </span>
         </div>
     );

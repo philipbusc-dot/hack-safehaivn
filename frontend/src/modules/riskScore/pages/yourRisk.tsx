@@ -10,7 +10,10 @@ import {
     deleteStat,
     updateStat,
 } from "../apis/personal.api";
-import { DANGER_STYLE, REGIONS } from "../data/regions";
+import { DANGER_STYLE } from "../data/regions";
+import { useCountries, useUserCountry } from "../hooks/useCountries";
+import { useAuth } from "../../auth/context/AuthContext";
+import type { Country } from "../types/risk.types";
 import type { PersonalRiskResult, SurvivalStat } from "../types/personal.types";
 import FactorCard from "../components/factorCard";
 import InputModal from "../components/inputModal";
@@ -20,7 +23,10 @@ import Latex from '../Latex';
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 export default function YourRisk() {
-    const [regionIndex] = useState(0);
+    const { user } = useAuth();
+    const { countries } = useCountries();
+    const userCountry = useUserCountry(countries);
+    const [region, setRegion] = useState<Country | null>(null);
     const [regionalScore, setRegionalScore] = useState<number | null>(null);
     const [personal, setPersonal] = useState<PersonalRiskResult | null>(null);
     const [loading, setLoading] = useState(false);
@@ -29,18 +35,29 @@ export default function YourRisk() {
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState<SurvivalStat | null>(null);
     const [saving, setSaving] = useState(false);
-    const region = REGIONS[regionIndex]!;
     const refreshPersonal = useCallback(async (score: number) => {
         const result = await calculatePersonal(score);
         setPersonal(result);
     }, []);
+
+    // Seed an initial country (Thailand, else the first), then snap to the
+    // user's detected location once geolocation resolves.
     useEffect(() => {
+        if (region || countries.length === 0) return;
+        setRegion(countries.find((c) => c.iso2 === "TH") ?? countries[0]!);
+    }, [countries, region]);
+    useEffect(() => {
+        if (userCountry) setRegion(userCountry);
+    }, [userCountry]);
+
+    useEffect(() => {
+        if (!region) return;
         let cancelled = false;
         setLoading(true);
         setError(null);
 
         calculateRegionRisk({
-            country: region.country,
+            country: region.iso2,
             lat: region.lat,
             lng: region.lng,
         })
@@ -60,7 +77,7 @@ export default function YourRisk() {
         return () => {
             cancelled = true;
         };
-    }, [region.country, region.lat, region.lng, refreshPersonal]);
+    }, [region, refreshPersonal]);
 
     const closeModal = () => {
         setShowModal(false);
@@ -77,13 +94,13 @@ export default function YourRisk() {
         setShowModal(true);
     };
 
-    const handleSubmit = async (name: string, value: number) => {
+    const handleSubmit = async (name: string, value: number, unit: string) => {
         setSaving(true);
         try {
             if (editing) {
-                await updateStat(editing.id, { name, value });
+                await updateStat(editing.id, { name, value, unit });
             } else {
-                await addStat({ name, value });
+                await addStat({ name, value, unit });
             }
             if (regionalScore !== null) await refreshPersonal(regionalScore);
             closeModal();
@@ -140,7 +157,7 @@ export default function YourRisk() {
                 >
                     Regional Score
                 </button>
-                <button className="flex w-full justify-center p-1 bg-accent rounded-full italic font-bold text-xs items-center">
+                <button className="flex w-full justify-center p-1 text-black bg-accent rounded-full italic font-bold text-xs items-center">
                     Your Score
                 </button>
             </div>
@@ -150,10 +167,11 @@ export default function YourRisk() {
             <div className="flex flex-col md:flex-row gap-5 items-center justify-center">
                 <div className="flex flex-col flex-1 w-full">
                     <div className="my-3 w-full">
-                        <h1 className="bg-drop rounded-full text-xs px-3 py-1">Ronald Kok</h1>
+                        <h1 className="bg-drop rounded-full text-xs px-3 py-1 text-black">Welcome, {user?.username ?? "—"}</h1>
                     </div>
 
                     <div className="flex flex-col gap-6 bg-surface border-2 border-line w-full h-full justify-center items-center p-10 rounded-2xl">
+                        <span className="flex items-center gap-2 text-white font-bold text-lg">{user?.username ?? "—"}'s Score</span>
                         <div className="relative w-48 h-48">
                             <Doughnut
                                 data={chartData}
@@ -191,7 +209,18 @@ export default function YourRisk() {
                                 </span>
                             </div>
                         </div>
+                        <span className="flex items-center gap-2 text-faint font-bold text-xs">
+                            Your Region: {region?.flag && (
+                                <img
+                                    src={region.flag}
+                                    alt=""
+                                    className="w-6 h-4 object-cover rounded-sm"
+                                />
+                            )}
+                            {region?.name ?? "—"}
+                        </span>
                     </div>
+
                     <div className="flex flex-col justify-center items-center text-white text-[7.5px] space-y-1 mt-2">
                         <p className="text-muted font-bold">How your PSI is calculated</p>
                         {/* Limiting Factor Model: the resource that runs dry first
@@ -237,6 +266,7 @@ export default function YourRisk() {
                                         key={s.id}
                                         factor={s.name}
                                         score={s.value}
+                                        unit={s.unit}
                                         isWeakestLink={isWeakest}
                                         accentColor={style.hex}
                                         onEdit={() => handleEdit(s)}
@@ -255,6 +285,7 @@ export default function YourRisk() {
                 submitLabel={editing ? "Save" : "Submit"}
                 initialName={editing?.name ?? ""}
                 initialValue={editing?.value ?? null}
+                initialUnit={editing?.unit ?? "days"}
                 saving={saving}
                 onClose={closeModal}
                 onSubmit={handleSubmit}

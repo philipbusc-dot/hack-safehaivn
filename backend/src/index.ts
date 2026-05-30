@@ -19,7 +19,7 @@ app.use(
 );
 
 app.use("/uploads", express.static("uploads"));
-app.use("", mainRouter);
+app.use(mainRouter);
 
 // Must be registered last — catches any error passed to next(err)
 app.use(errorHandler);

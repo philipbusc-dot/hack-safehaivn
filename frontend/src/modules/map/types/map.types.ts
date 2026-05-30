@@ -7,5 +7,10 @@ export interface Stat {
   active: number;
   casesPerOneMillion: number;
   population: number;
-  countryInfo?: { iso2?: string };
+  countryInfo?: {
+    iso2?: string;
+    lat?: number;
+    long?: number;
+    flag?: string;
+  };
 }
