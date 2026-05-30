@@ -107,31 +107,35 @@ export async function findMatchesBySender(senderId: string): Promise<Match[]> {
   });
 }
 
-// ─── Chat Message Queries ─────────────────────────────────────────────────────
-
 /**
- * Ensures a starter message exists from the matched survivor to the current user.
- * Only creates one if none already exists (idempotent).
+ * Two-way inbox support: every user the given user has exchanged messages with,
+ * mapped to the timestamp (ms) of their most recent message. Lets the recipient
+ * of a message see the conversation regardless of who swiped first, and lets the
+ * inbox be ordered by recent activity.
  */
-export async function ensureChatStarter(
-  survivorId: string,
-  userId: string
-): Promise<void> {
-  const existing = await prisma.chatMessage.findFirst({
-    where: { senderId: survivorId, receiverId: userId },
-  });
-
-  if (!existing) {
-    await prisma.chatMessage.create({
-      data: {
-        senderId: survivorId,
-        receiverId: userId,
-        text: "Secure frequency established. Broadcast channel open.",
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      },
-    });
-  }
+export interface ChatActivity {
+  at: number; // ms timestamp of the most recent message
+  text: string; // the most recent message's text (for an inbox preview)
 }
+
+export async function findChatActivity(
+  userId: string
+): Promise<Record<string, ChatActivity>> {
+  const msgs = await prisma.chatMessage.findMany({
+    where: { OR: [{ senderId: userId }, { receiverId: userId }] },
+    select: { senderId: true, receiverId: true, text: true, createdAt: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const activity: Record<string, ChatActivity> = {};
+  for (const m of msgs) {
+    const other = m.senderId === userId ? m.receiverId : m.senderId;
+    if (other === userId) continue; // ignore any self-messages
+    activity[other] = { at: m.createdAt.getTime(), text: m.text }; // asc → last wins = latest
+  }
+  return activity;
+}
+
+// ─── Chat Message Queries ─────────────────────────────────────────────────────
 
 /**
  * Returns all messages exchanged between two survivors, ordered chronologically.
@@ -165,42 +169,6 @@ export async function createMessage(
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     },
   });
-}
-
-/**
- * Fires an automated reply from a matched survivor after a 1-second delay.
- * Silently swallows errors so the parent response is never affected.
- */
-export function scheduleAutoReply(survivorId: string, userId: string): void {
-  const replies = [
-    "That sounds intense. I'm keeping watch near bunker gates.",
-    "We should plan a scavenge run soon. Let me know when you're free.",
-    "Copy that. Signal quality is dropping, but I'm still online.",
-    "Roger. Keep your geiger counter handy!",
-    "bro I forgot the deadline was today 💀",
-    "can you send me the file again?",
-    "honestly I didn't expect this project to become this complicated 😭",
-  ];
-
-  setTimeout(async () => {
-    try {
-      const survivor = await prisma.user.findUnique({ where: { id: survivorId } });
-      if (!survivor) return;
-
-      const randomText = replies[Math.floor(Math.random() * replies.length)];
-
-      await prisma.chatMessage.create({
-        data: {
-          senderId: survivorId,
-          receiverId: userId,
-          text: randomText,
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        },
-      });
-    } catch (err) {
-      console.error("Failed to append secure mock auto-reply:", err);
-    }
-  }, 1000);
 }
 
 /** Updates the text of an existing message */

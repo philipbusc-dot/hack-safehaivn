@@ -116,6 +116,10 @@ export interface MatchedSurvivorResponse extends SurvivorView, PersonalRisk {
   matchType: "like" | "love";
   /** Structured supply inventory list */
   supplies: SupplyItem[];
+  /** ISO timestamp of the last message in this conversation (null if none yet). */
+  lastMessageAt: string | null;
+  /** The last message's text, for an inbox preview (null if none yet). */
+  lastMessage: string | null;
 }
 
 /** Current-user profile enriched with their own personal risk factor. */
