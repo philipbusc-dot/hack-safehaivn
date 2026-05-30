@@ -32,10 +32,13 @@ export async function generateChat(
   return data;
 }
 
-/** Convenience: actions mode. */
-export async function generateActions(): Promise<ActionsBriefing> {
+/** Convenience: actions mode. Optionally tailored to the chat conversation. */
+export async function generateActions(
+  history: ChatTurn[] = []
+): Promise<ActionsBriefing> {
   const { data } = await api.post<ActionsBriefing>("/ai/generate-briefing", {
     mode: "actions",
+    history,
   });
   return data;
 }

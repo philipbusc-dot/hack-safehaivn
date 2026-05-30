@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { MonoLabel, Spinner, Notice } from "../../../components/ui";
 import { generateActions } from "../apis/ai.api";
+import { getActiveContext } from "../lib/chatStorage";
 import PriorityTag from "./PriorityTag";
 import type { ActionsBriefing } from "../types/ai.types";
 
@@ -52,12 +53,16 @@ export default function ActionsView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Record<number, boolean>>({});
+  const [tailored, setTailored] = useState(false);
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      const res = await generateActions();
+      // Pull recent chat context so actions reflect what the user discussed.
+      const context = getActiveContext();
+      setTailored(context.length > 0);
+      const res = await generateActions(context);
       setData(res);
       setDone({});
     } catch {
@@ -74,11 +79,19 @@ export default function ActionsView() {
   return (
     <div className="flex h-full flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <MonoLabel className="text-faint">
-          {data
-            ? `PRIORITISED FOR ${data.region.toUpperCase()} · ${data.threatLevel} THREAT`
-            : "PRIORITISED BRIEFING"}
-        </MonoLabel>
+        <div className="flex flex-col gap-1">
+          <MonoLabel className="text-faint">
+            {data
+              ? `PRIORITISED FOR ${data.region.toUpperCase()} · ${data.threatLevel} THREAT`
+              : "PRIORITISED BRIEFING"}
+          </MonoLabel>
+          {tailored && (
+            <span className="flex items-center gap-1.5 text-[11px] text-lime">
+              <span className="h-1.5 w-1.5 rounded-full bg-lime" />
+              Tailored to your conversation
+            </span>
+          )}
+        </div>
         <button
           type="button"
           onClick={() => void load()}

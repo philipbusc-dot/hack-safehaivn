@@ -335,8 +335,16 @@ function buildUserPrompt(
     );
   }
   if (input.mode === "actions") {
+    const convo =
+      input.history && input.history.length > 0
+        ? `\n\nThe user has been discussing the following — tailor and prioritize the ` +
+          `actions to their stated situation, needs, and constraints:\n` +
+          input.history
+            .map((t) => `${t.role === "ai" ? "Assistant" : "User"}: ${t.content}`)
+            .join("\n")
+        : "";
     return (
-      `${facts}\nProduce 6–8 prioritized survival actions for this situation. ` +
+      `${facts}${convo}\n\nProduce 6–8 prioritized survival actions for this situation. ` +
       `Return ONLY valid JSON: {"region":string,"threatLevel":"LOW"|"MODERATE"|"HIGH",` +
       `"actions":[{"title":string,"priority":"NOW"|"SOON"|"MONITOR","rationale":string}]}.`
     );

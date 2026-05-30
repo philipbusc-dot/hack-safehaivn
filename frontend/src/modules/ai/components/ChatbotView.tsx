@@ -6,6 +6,7 @@ import type { ChatMessage, ChatTurn } from "../types/ai.types";
 import {
   loadConversations,
   saveConversations,
+  saveActiveId,
   deriveTitle,
   type Conversation,
 } from "../lib/chatStorage";
@@ -113,6 +114,11 @@ export default function ChatbotView() {
       behavior: "smooth",
     });
   }, [activeId, messages.length, lastMsg?.html, lastMsg?.pending]);
+
+  // Remember the active chat so other tabs (Actions) can use its context.
+  useEffect(() => {
+    if (activeId) saveActiveId(activeId);
+  }, [activeId]);
 
   /** Update the active conversation's messages and persist. */
   function setActiveMessages(updater: (prev: ChatMessage[]) => ChatMessage[]) {
