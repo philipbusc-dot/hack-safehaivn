@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Spinner } from "../../../components/ui";
 import { generateChat } from "../apis/ai.api";
+import { useAuth } from "../../auth/context/AuthContext";
 import RichText from "./RichText";
 import type { ChatMessage, ChatTurn } from "../types/ai.types";
 import {
@@ -32,8 +33,8 @@ function newConversation(): Conversation {
 }
 
 /** Saved conversations on first render, or a single fresh chat if none. */
-function loadInitial(): Conversation[] {
-  const saved = loadConversations();
+function loadInitial(scope: string): Conversation[] {
+  const saved = loadConversations(scope);
   return saved.length > 0 ? saved : [newConversation()];
 }
 
@@ -95,7 +96,11 @@ function Bubble({ msg }: { msg: ChatMessage }) {
 }
 
 export default function ChatbotView() {
-  const [conversations, setConversations] = useState<Conversation[]>(loadInitial);
+  // Scope all history to the signed-in user so accounts don't share chats.
+  const scope = useAuth().user?.id ?? "anon";
+  const [conversations, setConversations] = useState<Conversation[]>(() =>
+    loadInitial(scope)
+  );
   const [activeId, setActiveId] = useState<string>(
     () => conversations[0]?.id ?? ""
   );
@@ -117,8 +122,8 @@ export default function ChatbotView() {
 
   // Remember the active chat so other tabs (Actions) can use its context.
   useEffect(() => {
-    if (activeId) saveActiveId(activeId);
-  }, [activeId]);
+    if (activeId) saveActiveId(scope, activeId);
+  }, [scope, activeId]);
 
   /** Update the active conversation's messages and persist. */
   function setActiveMessages(updater: (prev: ChatMessage[]) => ChatMessage[]) {
@@ -133,7 +138,7 @@ export default function ChatbotView() {
           updatedAt: Date.now(),
         };
       });
-      saveConversations(next);
+      saveConversations(scope, next);
       return next;
     });
   }
@@ -143,7 +148,7 @@ export default function ChatbotView() {
     const convo = newConversation();
     setConversations((prev) => {
       const next = [convo, ...prev];
-      saveConversations(next);
+      saveConversations(scope, next);
       return next;
     });
     setActiveId(convo.id);
@@ -161,7 +166,7 @@ export default function ChatbotView() {
     setConversations((prev) => {
       let next = prev.filter((c) => c.id !== id);
       if (next.length === 0) next = [newConversation()];
-      saveConversations(next);
+      saveConversations(scope, next);
       if (id === activeId) setActiveId(next[0].id);
       return next;
     });

@@ -1,5 +1,8 @@
 // Browser-side persistence for chatbot conversations (localStorage).
 // Stateless backend + this = real, revisitable chat history with no server work.
+//
+// History is scoped per user: every key is suffixed with the signed-in user's
+// id, so two accounts on the same browser never see each other's chats.
 import type { ChatMessage, ChatTurn } from "../types/ai.types";
 
 export interface Conversation {
@@ -9,13 +12,21 @@ export interface Conversation {
   updatedAt: number;
 }
 
-const KEY = "safehaivn.chats.v1";
-const ACTIVE_KEY = "safehaivn.chats.active.v1";
+const BASE = "safehaivn.chats.v1";
+const ACTIVE_BASE = "safehaivn.chats.active.v1";
 
-/** Load saved conversations, dropping any corrupt or mid-flight (pending) data. */
-export function loadConversations(): Conversation[] {
+/** Build a user-scoped storage key. `scope` is the user id (or "anon"). */
+function chatsKey(scope: string): string {
+  return `${BASE}::${scope}`;
+}
+function activeKey(scope: string): string {
+  return `${ACTIVE_BASE}::${scope}`;
+}
+
+/** Load saved conversations for a user, dropping corrupt or pending data. */
+export function loadConversations(scope: string): Conversation[] {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(chatsKey(scope));
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -39,10 +50,10 @@ export function loadConversations(): Conversation[] {
   }
 }
 
-/** Persist conversations. Silently ignores quota / disabled-storage errors. */
-export function saveConversations(conversations: Conversation[]): void {
+/** Persist a user's conversations. Silently ignores quota / disabled storage. */
+export function saveConversations(scope: string, conversations: Conversation[]): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(conversations));
+    localStorage.setItem(chatsKey(scope), JSON.stringify(conversations));
   } catch {
     /* storage full or unavailable — history just won't persist this session */
   }
@@ -56,17 +67,17 @@ export function deriveTitle(messages: ChatMessage[]): string {
 }
 
 /** Remember which conversation the user is currently viewing. */
-export function loadActiveId(): string | null {
+export function loadActiveId(scope: string): string | null {
   try {
-    return localStorage.getItem(ACTIVE_KEY);
+    return localStorage.getItem(activeKey(scope));
   } catch {
     return null;
   }
 }
 
-export function saveActiveId(id: string): void {
+export function saveActiveId(scope: string, id: string): void {
   try {
-    localStorage.setItem(ACTIVE_KEY, id);
+    localStorage.setItem(activeKey(scope), id);
   } catch {
     /* storage unavailable — ignore */
   }
@@ -77,10 +88,10 @@ export function saveActiveId(id: string): void {
  * Recommended Actions tab tailoring itself to the chat). Returns [] when the
  * active chat has no real user messages yet, so other tabs stay generic.
  */
-export function getActiveContext(maxTurns = 10): ChatTurn[] {
-  const convos = loadConversations();
+export function getActiveContext(scope: string, maxTurns = 10): ChatTurn[] {
+  const convos = loadConversations(scope);
   if (convos.length === 0) return [];
-  const activeId = loadActiveId();
+  const activeId = loadActiveId(scope);
   const active = convos.find((c) => c.id === activeId) ?? convos[0];
   const turns: ChatTurn[] = active.messages
     .filter((m) => !m.pending && m.html.trim().length > 0)

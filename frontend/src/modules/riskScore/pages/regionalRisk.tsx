@@ -103,7 +103,7 @@ export default function RegionalRisk() {
     }, [data?.regionalScore, style.hex]);
 
     return (
-        <div className="flex flex-col gap-3 w-full max-w-3xl p-6">
+        <div className="flex flex-col gap-3 w-full max-w-3xl p-6 mx-auto">
             <div className="flex flex-row gap-3 items-center">
                 <div>
                     <TriangleAlert color="white" size={35} />

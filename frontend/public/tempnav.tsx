@@ -1,26 +1,68 @@
 import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "../src/modules/auth/context/AuthContext";
+
+// Primary navigation. `match` lets a link stay active across nested paths
+// (e.g. RiskFactor highlights for both /risk/region and /risk/yourscore).
+const LINKS: { to: string; label: string; match?: string }[] = [
+  { to: "/ai", label: "AI" },
+  { to: "/map", label: "Map" },
+  { to: "/risk/region", label: "RiskFactor", match: "/risk" },
+  { to: "/reports", label: "Reports" },
+  { to: "/connect", label: "Connect" },
+];
 
 const TempNav = () => {
   const location = useLocation();
+  const { user, logout } = useAuth();
+
+  // Hidden when signed out so the login / signup pages stay clean.
+  if (!user) return null;
 
   return (
-    <div className="self-stretch px-4 pt-8 pb-4 bg-neutral-900 border-b border-neutral-800 inline-flex justify-center items-center shrink-0 z-40 w-full select-none">
-      <div className="w-96 flex justify-center items-center gap-7 select-none font-mono">
-        <div className="justify-start text-neutral-400 text-xs font-normal tracking-wide">☣️</div>
-        <div className="justify-start text-neutral-400 text-xs font-normal tracking-wide cursor-not-allowed">Map</div>
-        <div className="justify-start text-neutral-400 text-xs font-normal tracking-wide cursor-not-allowed">RiskFactor</div>
-        <Link
-          to="/connect"
-          className={`justify-start text-xs font-['Space_Mono'] tracking-wide transition-colors ${location.pathname === "/connect"
-              ? "text-lime-400 font-bold"
-              : "text-neutral-400 font-normal hover:text-white"
-            }`}
+    <header className="sticky top-0 z-50 flex w-full select-none items-center justify-between gap-4 border-b border-neutral-800 bg-neutral-900/95 px-5 py-3 backdrop-blur">
+      <span className="font-mono text-xs tracking-wide text-neutral-400">
+        ☣️ SafeHAIVN
+      </span>
+
+      <nav className="flex items-center gap-6 font-mono text-xs">
+        {LINKS.map((l) => {
+          const active = location.pathname.startsWith(l.match ?? l.to);
+          return (
+            <Link
+              key={l.to}
+              to={l.to}
+              className={
+                active
+                  ? "font-bold text-lime-400"
+                  : "font-normal text-neutral-400 transition-colors hover:text-white"
+              }
+            >
+              {l.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="flex items-center gap-3 text-[12px]">
+        <span className="text-neutral-300">{user.username}</span>
+        <span
+          className={`rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] ${
+            user.role === "admin"
+              ? "border-lime-400/40 text-lime-400"
+              : "border-neutral-700 text-neutral-400"
+          }`}
         >
-          Connect
-        </Link>
-        <div className="justify-start text-neutral-400 text-xs font-normal tracking-wide cursor-not-allowed">AI</div>
+          {user.role}
+        </span>
+        <button
+          type="button"
+          onClick={() => void logout()}
+          className="rounded-full border border-neutral-700 px-3 py-1 text-neutral-400 transition hover:text-white"
+        >
+          Logout
+        </button>
       </div>
-    </div>
+    </header>
   );
 };
 

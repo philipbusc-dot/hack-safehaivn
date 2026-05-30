@@ -93,7 +93,7 @@ export default function MapPage() {
         polygonsTransitionDuration={300}
       />
 
-      <div className="absolute top-5 left-5">
+      <div className="absolute top-20 left-5">
         <h1
           className="text-xl font-bold"
           style={{ textShadow: "0 0 14px rgba(164,210,51,.5)" }}
@@ -159,7 +159,7 @@ function Panel({
     ? `${reportSeverity} (your report)`
     : bucketLabel(stat?.casesPerOneMillion);
   return (
-    <div className="absolute top-20 right-6 w-72 p-5 rounded-2xl bg-[#13241E]/90 border border-[#A4D233]/40 backdrop-blur">
+    <div className="absolute top-24 right-6 z-10 w-72 p-5 rounded-2xl bg-[#13241E]/90 border border-[#A4D233]/40 backdrop-blur">
       <button onClick={onClose} className="float-right text-gray-400">
         ✕
       </button>

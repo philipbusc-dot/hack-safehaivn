@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { MonoLabel, Spinner, Notice } from "../../../components/ui";
 import { generateActions } from "../apis/ai.api";
 import { getActiveContext } from "../lib/chatStorage";
+import { useAuth } from "../../auth/context/AuthContext";
 import PriorityTag from "./PriorityTag";
 import type { ActionsBriefing } from "../types/ai.types";
 
@@ -54,13 +55,14 @@ export default function ActionsView() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Record<number, boolean>>({});
   const [tailored, setTailored] = useState(false);
+  const scope = useAuth().user?.id ?? "anon";
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
       // Pull recent chat context so actions reflect what the user discussed.
-      const context = getActiveContext();
+      const context = getActiveContext(scope);
       setTailored(context.length > 0);
       const res = await generateActions(context);
       setData(res);
