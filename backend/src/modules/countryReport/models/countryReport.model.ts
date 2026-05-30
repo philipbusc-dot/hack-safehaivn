@@ -11,7 +11,7 @@ export async function createReport(
 }
 // Read - get all report , newest first
 export async function getReports(): Promise<CountryReport[]> {
-    return prisma.countryReport.findMany({ orderBy: {createdAt: "desc"}});
+    return prisma.countryReport.findMany({ orderBy: {createAt: "desc"}});
 }
 //Update - change report by id 
 export async function updateReport(

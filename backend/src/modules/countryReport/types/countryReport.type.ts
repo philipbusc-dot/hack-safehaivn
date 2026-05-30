@@ -7,6 +7,6 @@ export interface CountryReportInput {
 }
 export interface CountryReport extends CountryReportInput {
     id: number;
-    createdAt: Date;
-    updatedAt: Date;
+    createAt: Date;
+    updateAt: Date;
 }
