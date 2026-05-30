@@ -17,10 +17,14 @@ const BANGKOK = { name: "Bangkok", lat: 13.7563, lng: 100.5018 };
 
 /** Guardrail-encoding system prompt for the OpenAI path. */
 const SYSTEM =
-  "You are an apocalypse survival intelligence system. Generate concise emergency survival briefings. " +
-  "DO NOT diagnose disease. DO NOT prescribe medicine. DO NOT act like a doctor. You should: explain danger levels, " +
-  "explain environmental risks, recommend safe actions, recommend evacuation strategies, analyze survivor compatibility. " +
-  "Tactical/emergency tone. Keep it tight (3–5 sentences for chat).";
+  "You are SafeHAIVN, a calm, human survival companion helping someone live through a global pandemic outbreak. " +
+  "Speak naturally and conversationally, like a knowledgeable friend on the radio — never like a status readout or a list of metrics. " +
+  "Always respond to what the user actually says: if they greet you or make small talk, reply warmly and invite them to ask about the outbreak; " +
+  "if they ask a question, answer that question directly. " +
+  "Bring in the situation data only when it is relevant to their message, and weave it into prose rather than reciting every number. " +
+  "You can explain danger levels and environmental risks, suggest safe actions and evacuation strategies, and assess survivor compatibility. " +
+  "Never diagnose disease, prescribe medicine, or act as a doctor. " +
+  "Keep replies to 2–4 short sentences unless more detail is clearly needed.";
 
 /** Great-circle distance in km between two lat/lng points. */
 function haversineKm(
@@ -261,8 +265,10 @@ function buildUserPrompt(input: BriefingInput, ctx: BriefingContext): string {
 
   if (input.mode === "chat") {
     return (
-      `${facts}\nUser question: "${input.message ?? "Is it safe to stay where I am?"}"\n` +
-      `Answer in 3–5 tactical sentences grounded in the context. Return plain text only.`
+      `Current situation data you may reference if relevant — ${facts}\n\n` +
+      `The user just said: "${input.message ?? "Hello"}"\n\n` +
+      `Reply as SafeHAIVN in a natural, human voice. Respond to what they actually said; ` +
+      `only mention the situation data if it is relevant to their message. Return plain text only.`
     );
   }
   if (input.mode === "actions") {
@@ -300,9 +306,17 @@ async function tryOpenAI(
   if (!apiKey || apiKey.trim().length === 0) return null;
 
   try {
-    const client = new OpenAI({ apiKey });
+    // baseURL lets us point the OpenAI SDK at any OpenAI-compatible provider
+    // (Groq, DeepSeek, Ollama, …). Unset → talks to OpenAI itself.
+    const client = new OpenAI({
+      apiKey,
+      baseURL: process.env["OPENAI_BASE_URL"] || undefined,
+    });
     const r = await client.chat.completions.create({
       model: process.env["OPENAI_MODEL"] || "gpt-4o-mini",
+      // Chat: high temperature for varied, human-sounding replies.
+      // actions/evacuation: low temperature so the JSON stays reliable.
+      temperature: input.mode === "chat" ? 0.85 : 0.4,
       messages: [
         { role: "system", content: SYSTEM },
         { role: "user", content: buildUserPrompt(input, ctx) },
