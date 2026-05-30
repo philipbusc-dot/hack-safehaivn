@@ -27,3 +27,14 @@ model AdditionRecord {
   result    Float
   createdAt DateTime @default(now())
 }
+
+model CountryReport{
+  id Int @id @default(autoincrement())
+  countryCode String 
+  countryName String
+  severity String @default("Moderate")
+  cases Int @default(0)
+  note String @default("")
+  createAt DateTime  @default(now())
+  updateAt DateTime @updatedAt
+}
