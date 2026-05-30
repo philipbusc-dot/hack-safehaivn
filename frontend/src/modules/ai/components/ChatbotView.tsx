@@ -6,26 +6,14 @@ import type { ChatMessage } from "../types/ai.types";
 
 const CHIPS = ["What should I pack?", "Nearest safe zone?", "How does it spread?"];
 
-/** Canonical seeded conversation (design canon — Bangkok / HIGH threat). */
-const SEED: ChatMessage[] = [
-  {
-    id: "seed-ai-1",
-    role: "ai",
-    html:
-      "Briefing online. You're in **Bangkok**, currently rated [danger]HIGH threat[/danger]. Ask me anything about the outbreak, or switch views for an actionable checklist or your evacuation route.",
-  },
-  {
-    id: "seed-user-1",
-    role: "user",
-    html: "Is it safe to stay where I am?",
-  },
-  {
-    id: "seed-ai-2",
-    role: "ai",
-    html:
-      "Not advised. Infection rates are **climbing** and local hospitals are at [danger]overflow capacity[/danger], so emergency care may be unavailable. The good news: there are [lime]3 verified-clean survivors within 4 km[/lime] who can confirm a safe corridor. Shelter in place only if you're well-supplied — otherwise prepare to move north-east.",
-  },
-];
+/** Opening greeting shown on load and after "New Chat". */
+const GREETING =
+  "Briefing online. You're in **Bangkok**, currently rated [danger]HIGH threat[/danger]. Ask me anything about the outbreak, or switch views for an actionable checklist or your evacuation route.";
+
+/** A fresh thread containing only the AI greeting. */
+function initialMessages(): ChatMessage[] {
+  return [{ id: "greeting", role: "ai", html: GREETING }];
+}
 
 function Avatar({ role }: { role: ChatMessage["role"] }) {
   if (role === "ai") {
@@ -75,10 +63,17 @@ function Bubble({ msg }: { msg: ChatMessage }) {
 }
 
 export default function ChatbotView() {
-  const [messages, setMessages] = useState<ChatMessage[]>(SEED);
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  /** Reset to a fresh thread (clears the conversation). */
+  function newChat() {
+    if (busy) return;
+    setInput("");
+    setMessages(initialMessages());
+  }
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -133,6 +128,18 @@ export default function ChatbotView() {
 
   return (
     <div className="flex h-full flex-col">
+      {/* Header: New Chat (clears the thread) */}
+      <div className="mb-3 flex items-center justify-end">
+        <button
+          type="button"
+          onClick={newChat}
+          disabled={busy || messages.length <= 1}
+          className="rounded-full border border-line bg-surface2 px-3 py-1.5 text-[12px] text-muted transition hover:border-line2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          ＋ New Chat
+        </button>
+      </div>
+
       {/* Thread */}
       <div
         ref={scrollRef}
