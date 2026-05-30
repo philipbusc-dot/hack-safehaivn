@@ -1,10 +1,10 @@
 import { Router } from "express";
-import additionRouter from "./modules/addition/routers/addition.router";
-import multiplicationRouter from "./modules/multiplication/routers/multiplication.router";
+import riskRouter from "./modules/riskScore/routers/risk.router";
+import personalRouter from "./modules/personalRisk/routers/personal.router";
 
 const mainRouter = Router();
 
-mainRouter.use("/addition", additionRouter);
-mainRouter.use("/multiplication", multiplicationRouter);
+mainRouter.use("/regions", riskRouter);
+mainRouter.use("/personal", personalRouter);
 
 export default mainRouter;
