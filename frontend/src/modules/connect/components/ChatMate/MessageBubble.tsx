@@ -1,11 +1,13 @@
 import type { SurvivorProfile } from "../../types/connect.types";
 import type { Message } from "../../types/ChatPage.types";
+import Avatar from "../Avatar";
 
 interface MessageBubbleProps {
   msg: Message;
   activeContact: SurvivorProfile;
-  /** The current user's profile picture, shown on "you" bubbles. */
+  /** The current user's profile picture + name, shown on "you" bubbles. */
   youAvatarUrl?: string | null;
+  youName?: string;
   editingId: string | null;
   editText: string;
   onSetEditText: (text: string) => void;
@@ -24,6 +26,7 @@ const MessageBubble = ({
   msg,
   activeContact,
   youAvatarUrl,
+  youName,
   editingId,
   editText,
   onSetEditText,
@@ -42,15 +45,11 @@ const MessageBubble = ({
       {/* Meta row: avatar, name, edit/delete actions */}
       <div className="self-stretch inline-flex justify-between items-center overflow-hidden mb-2 select-none">
         <div className="flex justify-start items-center gap-2.5 min-w-0">
-          <div className={`w-6 h-6 rounded-full overflow-hidden shrink-0 ${isYou ? "bg-blue-700" : "bg-neutral-400"}`}>
-            {!isYou && activeContact.avatarUrl ? (
-              <img src={activeContact.avatarUrl} alt={activeContact.name} className="w-full h-full object-cover" />
-            ) : isYou && youAvatarUrl ? (
-              <img src={youAvatarUrl} alt="you" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-blue-700 rounded-full" />
-            )}
-          </div>
+          <Avatar
+            src={isYou ? youAvatarUrl : activeContact.avatarUrl}
+            name={isYou ? youName ?? "You" : activeContact.name}
+            className={`w-6 h-6 rounded-full shrink-0 text-[10px] text-white ${isYou ? "bg-blue-700" : "bg-neutral-600"}`}
+          />
           <div className={`text-base font-medium truncate ${isYou ? "text-white" : "text-lime-400"}`}>
             {isYou ? "you" : activeContact.name}
           </div>

@@ -1,6 +1,7 @@
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { ChevronRight, ArrowLeft, Heart } from "lucide-react";
 import { useMatchList } from "../../hooks/useMatchList";
+import Avatar from "../Avatar";
 
 interface ChatListSidebarProps {
   isOpen: boolean;
@@ -68,13 +69,11 @@ const ChatListSidebar = ({ isOpen, onClose }: ChatListSidebarProps) => {
             >
               <div className="flex items-center justify-start gap-4 min-w-0 flex-1">
                 {/* Avatar */}
-                <div className="size-8 rounded-full overflow-hidden shrink-0 flex items-center justify-center bg-neutral-800 border border-neutral-700 shadow-sm">
-                  {survivor.avatarUrl ? (
-                    <img src={survivor.avatarUrl} alt={survivor.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="text-xs text-neutral-950 font-bold uppercase">{survivor.name.charAt(0)}</div>
-                  )}
-                </div>
+                <Avatar
+                  src={survivor.avatarUrl}
+                  name={survivor.name}
+                  className="size-8 rounded-full shrink-0 bg-neutral-800 border border-neutral-700 shadow-sm text-xs text-neutral-200"
+                />
 
                 {/* Name + last-message preview */}
                 <div className="min-w-0 flex-1">

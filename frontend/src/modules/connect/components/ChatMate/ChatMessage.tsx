@@ -24,11 +24,15 @@ const ChatMessage = ({ isSidebarOpen, onToggleSidebar }: ChatMessageProps) => {
         cancelEdit,
     } = useChatMessages(id);
 
-    // The current user's profile picture (uploaded in settings), shown on "you" bubbles.
+    // The current user's profile picture + name (from settings), shown on "you" bubbles.
     const [youAvatar, setYouAvatar] = useState<string | null>(null);
+    const [youName, setYouName] = useState<string>("You");
     useEffect(() => {
         getCurrentUser()
-            .then((u) => setYouAvatar(u.avatarUrl ?? null))
+            .then((u) => {
+                setYouAvatar(u.avatarUrl ?? null);
+                if (u.name) setYouName(u.name);
+            })
             .catch(() => {});
     }, []);
 
@@ -106,6 +110,7 @@ const ChatMessage = ({ isSidebarOpen, onToggleSidebar }: ChatMessageProps) => {
                         msg={msg}
                         activeContact={activeContact}
                         youAvatarUrl={youAvatar}
+                        youName={youName}
                         editingId={editingId}
                         editText={editText}
                         onSetEditText={setEditText}
