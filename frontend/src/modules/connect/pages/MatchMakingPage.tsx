@@ -24,7 +24,7 @@ const MatchMakingPage = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col w-screen h-screen bg-neutral-950 overflow-hidden items-center justify-center p-6 text-center select-none font-mono">
+      <div className="flex flex-col w-screen h-screen overflow-hidden items-center justify-center p-6 text-center select-none font-mono">
         <div className="text-4xl mb-4 animate-spin">📡</div>
         <h2 className="text-xl font-bold mb-2 uppercase text-lime-400">Locking Transceiver...</h2>
         <p className="text-xs text-neutral-400 leading-relaxed max-w-xs animate-pulse">
@@ -35,7 +35,7 @@ const MatchMakingPage = () => {
   }
 
   return (
-    <div className="flex flex-col w-full h-full bg-neutral-950 overflow-hidden select-none relative">
+    <div className="flex flex-col w-full h-full overflow-hidden select-none relative">
       <div className="flex-1 relative min-h-0 w-full">
         {currentSurvivor ? (
           <>
