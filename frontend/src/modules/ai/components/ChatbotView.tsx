@@ -11,31 +11,64 @@ import {
   deriveTitle,
   type Conversation,
 } from "../lib/chatStorage";
+import { useCountries, nearestCountry } from "../../riskScore/hooks/useCountries";
+import { calculateRegionRisk } from "../../riskScore/apis/risk.api";
+import type { DangerLevel } from "../../riskScore/types/risk.types";
 
 const CHIPS = ["What should I pack?", "Nearest safe zone?", "How does it spread?"];
 
-/** Opening greeting shown on load and after "New Chat". */
-const GREETING =
-  "Briefing online. You're in **Bangkok**, currently rated [danger]HIGH threat[/danger]. Ask me anything about the outbreak, or switch views for an actionable checklist or your evacuation route.";
+/** Opening greeting before (or without) a resolved location. */
+const BASE_GREETING =
+  "Briefing online. Ask me anything about the outbreak, or switch views for an actionable checklist or your evacuation route.";
 
-/** A fresh thread containing only the AI greeting. */
-function initialMessages(): ChatMessage[] {
-  return [{ id: "greeting", role: "ai", html: GREETING }];
+/** A resolved location + (optional) live threat level for the greeting. */
+interface GreetingBriefing {
+  location: string;
+  threat?: DangerLevel;
+  /** Regional risk score (0–100), passed to the chatbot so its replies match. */
+  regionalRisk?: number;
 }
 
-function newConversation(): Conversation {
+/** RichText markup for a threat level (red = HIGH, lime = LOW, bold = MODERATE). */
+function threatMarkup(level: DangerLevel): string {
+  if (level === "HIGH") return "[danger]HIGH threat[/danger]";
+  if (level === "LOW") return "[lime]LOW threat[/lime]";
+  return "**MODERATE threat**";
+}
+
+/** Build the opening greeting, grounded in the user's location when known. */
+function buildGreeting(b: GreetingBriefing | null): string {
+  if (!b) return BASE_GREETING;
+  const rating = b.threat ? `, currently rated ${threatMarkup(b.threat)}` : "";
+  return (
+    `Briefing online. You're in **${b.location}**${rating}. ` +
+    "Ask me anything about the outbreak, or switch views for an actionable checklist or your evacuation route."
+  );
+}
+
+/** A fresh thread containing only the AI greeting. */
+function initialMessages(greeting: string): ChatMessage[] {
+  return [{ id: "greeting", role: "ai", html: greeting }];
+}
+
+function newConversation(greeting: string): Conversation {
   return {
     id: `c-${Date.now()}`,
     title: "New chat",
-    messages: initialMessages(),
+    messages: initialMessages(greeting),
     updatedAt: Date.now(),
   };
+}
+
+/** True when a thread is still just the unanswered opening greeting. */
+function isFreshGreeting(c: Conversation): boolean {
+  return c.messages.length === 1 && c.messages[0]?.id === "greeting";
 }
 
 /** Saved conversations on first render, or a single fresh chat if none. */
 function loadInitial(scope: string): Conversation[] {
   const saved = loadConversations(scope);
-  return saved.length > 0 ? saved : [newConversation()];
+  return saved.length > 0 ? saved : [newConversation(BASE_GREETING)];
 }
 
 function Avatar({ role }: { role: ChatMessage["role"] }) {
@@ -108,6 +141,78 @@ export default function ChatbotView() {
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Resolve the user's real location + live threat level so the opening
+  // greeting reflects where they actually are (same source as Map/RiskFactor).
+  const { countries, loading: countriesLoading } = useCountries();
+  const [briefing, setBriefing] = useState<GreetingBriefing | null>(null);
+
+  // Latest greeting text, so newly created chats start with the resolved line.
+  const greetingRef = useRef(BASE_GREETING);
+  useEffect(() => {
+    greetingRef.current = buildGreeting(briefing);
+  }, [briefing]);
+
+  useEffect(() => {
+    if (
+      countriesLoading ||
+      countries.length === 0 ||
+      !("geolocation" in navigator)
+    )
+      return;
+    let cancelled = false;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const match = nearestCountry(
+          countries,
+          pos.coords.latitude,
+          pos.coords.longitude
+        );
+        if (!match || cancelled) return;
+        try {
+          const risk = await calculateRegionRisk({
+            country: match.iso2,
+            lat: match.lat,
+            lng: match.lng,
+          });
+          if (!cancelled)
+            setBriefing({
+              location: match.name,
+              threat: risk.dangerLevel,
+              regionalRisk: risk.regionalScore,
+            });
+        } catch {
+          // Risk scoring failed — still greet with the location, minus the rating.
+          if (!cancelled) setBriefing({ location: match.name });
+        }
+      },
+      () => {
+        /* permission denied / timeout — keep the generic greeting */
+      },
+      { timeout: 8000, maximumAge: 5 * 60 * 1000 }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [countries, countriesLoading]);
+
+  // Once location resolves, refresh any thread that's still just the opening
+  // greeting — without touching conversations the user has already started.
+  useEffect(() => {
+    if (!briefing) return;
+    const text = buildGreeting(briefing);
+    setConversations((prev) => {
+      let changed = false;
+      const next = prev.map((c) => {
+        if (!isFreshGreeting(c) || c.messages[0]!.html === text) return c;
+        changed = true;
+        return { ...c, messages: [{ ...c.messages[0]!, html: text }] };
+      });
+      if (!changed) return prev;
+      saveConversations(scope, next);
+      return next;
+    });
+  }, [briefing, scope]);
+
   const active = conversations.find((c) => c.id === activeId);
   const messages = active?.messages ?? [];
   const hasUserMessage = messages.some((m) => m.role === "user");
@@ -145,7 +250,7 @@ export default function ChatbotView() {
 
   function newChat() {
     if (busy) return;
-    const convo = newConversation();
+    const convo = newConversation(greetingRef.current);
     setConversations((prev) => {
       const next = [convo, ...prev];
       saveConversations(scope, next);
@@ -165,7 +270,7 @@ export default function ChatbotView() {
     if (busy) return;
     setConversations((prev) => {
       let next = prev.filter((c) => c.id !== id);
-      if (next.length === 0) next = [newConversation()];
+      if (next.length === 0) next = [newConversation(greetingRef.current)];
       saveConversations(scope, next);
       if (id === activeId) setActiveId(next[0].id);
       return next;
@@ -197,7 +302,10 @@ export default function ChatbotView() {
     ]);
 
     try {
-      const res = await generateChat(trimmed, history);
+      const res = await generateChat(trimmed, history, {
+        location: briefing?.location,
+        regionalRisk: briefing?.regionalRisk,
+      });
       setActiveMessages((prev) =>
         prev.map((m) =>
           m.id === pendingId

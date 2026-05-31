@@ -19,15 +19,25 @@ export async function generateBriefing(
   return data;
 }
 
+/** Live context that grounds the chat in the user's real location. */
+export interface ChatContext {
+  /** The user's resolved location (country name). */
+  location?: string;
+  /** Regional risk score (0–100) for that location, if available. */
+  regionalRisk?: number;
+}
+
 /** Convenience: chat mode. Pass recent turns so the bot has continuity. */
 export async function generateChat(
   message: string,
-  history: ChatTurn[] = []
+  history: ChatTurn[] = [],
+  context: ChatContext = {}
 ): Promise<ChatBriefing> {
   const { data } = await api.post<ChatBriefing>("/ai/generate-briefing", {
     mode: "chat",
     message,
     history,
+    ...context,
   });
   return data;
 }
