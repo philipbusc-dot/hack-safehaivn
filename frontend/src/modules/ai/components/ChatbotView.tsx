@@ -67,7 +67,7 @@ function Bubble({ msg }: { msg: ChatMessage }) {
     >
       <Avatar role={msg.role} />
       <div
-        className={`max-w-[78%] rounded-[14px] border px-4 py-3 text-[14.5px] leading-relaxed ${
+        className={`min-w-0 max-w-[78%] wrap-break-word rounded-[14px] border px-4 py-3 text-[14.5px] leading-relaxed ${
           isUser
             ? "border-line2 bg-surface2 text-ink"
             : "border-line bg-surface text-ink"

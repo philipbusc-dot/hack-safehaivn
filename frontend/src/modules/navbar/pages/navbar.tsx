@@ -25,12 +25,12 @@ const TempNav = () => {
     return null;
 
   return (
-    <header className="sticky top-0 z-50 flex w-full select-none items-center justify-between gap-4 border-b border-neutral-800 bg-neutral-900/95 px-5 py-3 backdrop-blur">
-      <span className="font-mono text-xs tracking-wide text-neutral-400">
+    <header className="sticky top-0 z-50 flex w-full select-none flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-neutral-800 bg-neutral-900/95 px-3 py-3 backdrop-blur sm:px-5">
+      <span className="shrink-0 font-mono text-xs tracking-wide text-neutral-400">
         ☣️ SafeHAIVN
       </span>
 
-      <nav className="flex items-center gap-6 font-mono text-xs">
+      <nav className="flex items-center gap-4 font-mono text-xs sm:gap-6">
         {LINKS.map((l) => {
           const active = location.pathname.startsWith(l.match ?? l.to);
           return (
@@ -49,8 +49,8 @@ const TempNav = () => {
         })}
       </nav>
 
-      <div className="flex items-center gap-3 text-[12px]">
-        <span className="text-neutral-300">{user.username}</span>
+      <div className="flex shrink-0 items-center gap-3 text-[12px]">
+        <span className="hidden text-neutral-300 sm:inline">{user.username}</span>
         <span
           className={`rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] ${
             user.role === "admin"

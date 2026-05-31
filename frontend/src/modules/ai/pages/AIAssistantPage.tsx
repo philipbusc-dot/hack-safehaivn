@@ -23,7 +23,7 @@ export default function AIAssistantPage() {
   const corner = VIEWS.find((v) => v.id === view)?.corner ?? "";
 
   return (
-    <main className="mx-auto max-w-[1240px] px-5 py-10">
+    <main className="mx-auto w-full min-w-0 max-w-[1240px] overflow-x-clip px-5 py-10">
       <div className="flex flex-col gap-[34px] lg:flex-row">
         {/* Sidebar (desktop) */}
         <aside className="hidden w-[312px] shrink-0 flex-col gap-5 lg:flex">
@@ -52,7 +52,7 @@ export default function AIAssistantPage() {
         </div>
 
         {/* Right content panel */}
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <Panel label={corner} className="flex min-h-[560px] flex-col p-6 pt-10">
             <div className="flex-1">
               <ActiveView view={view} />
