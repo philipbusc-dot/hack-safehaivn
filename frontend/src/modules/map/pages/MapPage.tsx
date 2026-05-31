@@ -38,23 +38,27 @@ export default function MapPage() {
 
   // country shapes
   useEffect(() => {
-    fetchGeo().then((d) =>
-      setFeatures(d.features.filter((f: any) => f.properties.ISO_A2 !== "AQ"))
-    );
+    fetchGeo()
+      .then((d) =>
+        setFeatures(d.features.filter((f: any) => f.properties.ISO_A2 !== "AQ"))
+      )
+      .catch((err) => console.warn("Could not load country border shapes:", err));
   }, []);
 
   // live world data
   useEffect(() => {
-    fetchCountries().then((rows) => {
-      const iso: Record<string, Stat> = {};
-      const name: Record<string, Stat> = {};
-      for (const c of rows) {
-        if (c.countryInfo?.iso2) iso[c.countryInfo.iso2] = c;
-        name[c.country.toLowerCase()] = c;
-      }
-      setByIso(iso);
-      setByName(name);
-    });
+    fetchCountries()
+      .then((rows) => {
+        const iso: Record<string, Stat> = {};
+        const name: Record<string, Stat> = {};
+        for (const c of rows) {
+          if (c.countryInfo?.iso2) iso[c.countryInfo.iso2] = c;
+          name[c.country.toLowerCase()] = c;
+        }
+        setByIso(iso);
+        setByName(name);
+      })
+      .catch((err) => console.warn("Could not load live world case data:", err));
   }, []);
 
   // YOUR reports (CRUD) — these override the map color so the map shows your data
