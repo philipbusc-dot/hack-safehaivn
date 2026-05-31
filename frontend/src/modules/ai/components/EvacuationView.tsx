@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { MonoLabel, Spinner, Notice } from "../../../components/ui";
 import { generateEvacuation } from "../apis/ai.api";
+import { useCountries, nearestCountry } from "../../riskScore/hooks/useCountries";
 import type { EvacuationBriefing } from "../types/ai.types";
 
 export default function EvacuationView() {
@@ -8,23 +9,59 @@ export default function EvacuationView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function load() {
-    setLoading(true);
-    setError(null);
-
-    // The evacuation plan uses the scenario defaults resolved server-side.
-    try {
-      setData(await generateEvacuation());
-    } catch {
-      setError("Couldn't generate the evacuation advisory. Is the backend running?");
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Same live country list the Map/RiskFactor use — lets us resolve the user's
+  // real-world location and plot the evacuation from where they actually are,
+  // instead of the hard-coded scenario default.
+  const { countries, loading: countriesLoading } = useCountries();
 
   useEffect(() => {
-    void load();
-  }, []);
+    // Wait until the country-list fetch has settled, so the very first request
+    // can already be grounded in the user's location (no default→real reflow).
+    if (countriesLoading) return;
+    let cancelled = false;
+
+    function generate(location?: string) {
+      if (cancelled) return;
+      setLoading(true);
+      setError(null);
+      generateEvacuation(location ? { location } : {})
+        .then((d) => {
+          if (!cancelled) setData(d);
+        })
+        .catch(() => {
+          if (!cancelled)
+            setError(
+              "Couldn't generate the evacuation advisory. Is the backend running?"
+            );
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }
+
+    // Resolve the nearest country to the device's GPS, then plot from there.
+    // On denial / timeout / no list, fall back to the server scenario default.
+    if (countries.length > 0 && "geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const match = nearestCountry(
+            countries,
+            pos.coords.latitude,
+            pos.coords.longitude
+          );
+          generate(match?.name);
+        },
+        () => generate(),
+        { timeout: 8000, maximumAge: 5 * 60 * 1000 }
+      );
+    } else {
+      generate();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [countries, countriesLoading]);
 
   if (loading && !data) {
     return (
